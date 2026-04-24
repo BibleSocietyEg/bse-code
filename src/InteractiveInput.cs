@@ -544,9 +544,11 @@ public static class InteractiveInput
         // fromPos is the position BEFORE the change; cursor is already updated in buf.
         // We need to rewrite from fromPos to end of buf, then erase any leftover char.
         var suffix = buf.ToString()[fromPos..];
+        int startLeft = Console.CursorLeft;
         Console.Write(suffix + " "); // trailing space erases a deleted character
-        // Move cursor back to logical position (end of buf)
-        Console.CursorLeft -= 1; // undo the trailing space overshoot
+        // Move cursor back to logical position (end of suffix, before the trailing space)
+        int targetLeft = startLeft + suffix.Length;
+        Console.CursorLeft = Math.Max(0, Math.Min(targetLeft, Console.BufferWidth - 1));
     }
 
     private static void RedrawLine(StringBuilder buf, int cursor)
