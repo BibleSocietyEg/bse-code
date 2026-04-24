@@ -1,0 +1,24 @@
+{
+  "name": "bse-code",
+  "version": "1.3.0",
+  "description": "AI coding assistant CLI powered by OpenRouter",
+  "keywords": ["ai", "cli", "coding", "assistant", "openrouter"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BibleSocietyEg/bse-code"
+  },
+  "bin": {
+    "bse-code": "./bin.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "files": [
+    "bin.js",
+    "install.js"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

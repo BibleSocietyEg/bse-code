@@ -403,3 +403,6 @@ ASALocalRun/
 
 # Local History for Visual Studio
 .localhistory/
+
+# npm wrapper - downloaded binaries
+npm/bin/

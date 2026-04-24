@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    name: Build ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            asset: bse-code-win-x64.exe
+          - os: ubuntu-latest
+            rid: linux-x64
+            asset: bse-code-linux-x64
+          - os: ubuntu-latest
+            rid: linux-arm64
+            asset: bse-code-linux-arm64
+          - os: macos-latest
+            rid: osx-x64
+            asset: bse-code-osx-x64
+          - os: macos-latest
+            rid: osx-arm64
+            asset: bse-code-osx-arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Publish self-contained binary
+        run: >
+          dotnet publish BSE_Code.csproj
+          -c Release
+          -r ${{ matrix.rid }}
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o ./publish/${{ matrix.rid }}
+
+      - name: Rename binary (Windows)
+        if: matrix.os == 'windows-latest'
+        run: Rename-Item ./publish/${{ matrix.rid }}/bse-code.exe ${{ matrix.asset }}
+        shell: pwsh
+
+      - name: Rename binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: mv ./publish/${{ matrix.rid }}/bse-code ./publish/${{ matrix.rid }}/${{ matrix.asset }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ./publish/${{ matrix.rid }}/${{ matrix.asset }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./artifacts/*
+
+  npm-publish:
+    needs: release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Publish to npm
+        run: npm publish
+        working-directory: ./npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

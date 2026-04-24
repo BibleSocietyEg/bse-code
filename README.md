@@ -6,26 +6,34 @@ An AI coding assistant CLI powered by OpenRouter. Understands natural language, 
 
 ## Prerequisites
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - An [OpenRouter](https://openrouter.ai) API key (free tier available)
 
 ---
 
 ## Install
 
-**1. Clone**
+### via npm (recommended)
+
+Requires [Node.js 18+](https://nodejs.org). No .NET SDK needed.
+
+```sh
+npm install -g bse-code
+```
+
+### via .NET tool
+
+Requires [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+
+```sh
+dotnet tool install --global --add-source ./nupkg BSE_Code
+```
+
+**To build and install from source:**
+
 ```sh
 git clone <repo-url>
 cd <repo-folder>
-```
-
-**2. Pack**
-```sh
 dotnet pack BSE_Code.csproj -c Release -o ./nupkg
-```
-
-**3. Install as a global tool**
-```sh
 dotnet tool install --global --add-source ./nupkg BSE_Code
 ```
 
