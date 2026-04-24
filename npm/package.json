@@ -6,17 +6,18 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/BibleSocietyEg/bse-code"
+    "url": "git+https://github.com/BibleSocietyEg/bse-code.git"
   },
   "bin": {
-    "bse-code": "./bin.js"
+    "bse-code": "bin.js"
   },
   "scripts": {
     "postinstall": "node install.js"
   },
   "files": [
     "bin.js",
-    "install.js"
+    "install.js",
+    "README.md"
   ],
   "engines": {
     "node": ">=18"
