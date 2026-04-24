@@ -1,19 +1,19 @@
-# BSE_Code
+# BSE-Code
 
-An AI coding assistant CLI powered by an LLM via OpenRouter. It understands your prompts and can read files, write files, and run shell commands on your behalf.
+An AI coding assistant CLI powered by OpenRouter. Understands natural language, reads and writes files, and runs shell commands — right from your terminal.
 
 ---
 
 ## Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- An [OpenRouter](https://openrouter.ai) API key
+- An [OpenRouter](https://openrouter.ai) API key (free tier available)
 
 ---
 
-## Setup
+## Install
 
-**1. Clone the repo**
+**1. Clone**
 ```sh
 git clone <repo-url>
 cd <repo-folder>
@@ -24,33 +24,33 @@ cd <repo-folder>
 dotnet pack BSE_Code.csproj -c Release -o ./nupkg
 ```
 
-**3. Install globally**
+**3. Install as a global tool**
 ```sh
 dotnet tool install --global --add-source ./nupkg BSE_Code
 ```
 
-To update after a code change: bump `<Version>` in the csproj, repack, then:
+**To update** after a code change — bump `<Version>` in the csproj, repack, then:
 ```sh
 dotnet tool update --global --add-source ./nupkg BSE_Code
 ```
 
 ---
 
-## First-run Configuration
+## First-run Setup
 
-On the first run, `bse-code` will launch an interactive setup wizard:
+On first run, an interactive wizard will:
 
-1. Prompts for your **OpenRouter API key** (get one free at https://openrouter.ai/keys)
-2. Fetches the **live model list** from OpenRouter and displays them grouped by **Free** and **Paid**
-3. Lets you pick a model by number
-4. Saves everything to `~/.bse-code/config.json`
+1. Ask for your **OpenRouter API key** — get one free at https://openrouter.ai/keys
+2. Fetch the **live model list** from OpenRouter, grouped by Free / Paid
+3. Let you pick a model by number
+4. Save everything to `~/.bse-code/config.json`
 
-To re-run the wizard at any time:
+Re-run the wizard any time:
 ```sh
 bse-code --config
 ```
 
-Config is stored at:
+Config location:
 - **Windows**: `%USERPROFILE%\.bse-code\config.json`
 - **Linux/macOS**: `~/.bse-code/config.json`
 
@@ -58,73 +58,109 @@ Config is stored at:
 
 ## Usage
 
-Once installed, run from anywhere:
+### Interactive REPL (recommended)
+
+Just run with no arguments to start a persistent multi-turn session:
+
 ```sh
-bse-code -p "<your prompt>"
+bse-code
 ```
 
-Other commands:
-```sh
-bse-code --config         # Re-run the setup wizard
-bse-code --version        # Show version
-bse-code --help           # Show help
+You'll get a prompt with your current folder and a conversation that keeps context across messages:
+
 ```
+  ╭─────────────────────────────────────╮
+  │         BSE-Code  ·  AI Coding      │
+  ╰─────────────────────────────────────╯
+  model  : google/gemini-2.5-pro-exp-03-25:free
+  cwd    : my-project
+
+  my-project ❯ explain what this repo does
+```
+
+### One-shot mode
+
+Run a single prompt and exit:
+
+```sh
+bse-code -p "<prompt>"
+```
+
+### All flags
+
+```sh
+bse-code                        # Interactive REPL
+bse-code -p "<prompt>"          # One-shot prompt
+bse-code --model <model-id>     # Override model for this session
+bse-code --config               # Re-run the setup wizard
+bse-code --version, -v          # Show version
+bse-code --help, -h             # Show help
+```
+
+---
+
+## REPL Slash Commands
+
+Inside the interactive session:
+
+| Command  | Description                        |
+|----------|------------------------------------|
+| `/clear` | Clear conversation history         |
+| `/model` | Show the current model             |
+| `/help`  | List available slash commands      |
+| `/exit`  | Quit                               |
 
 ---
 
 ## Examples
 
-Ask a question:
 ```sh
+# Interactive session
+bse-code
+
+# One-shot prompts
 bse-code -p "Explain what this codebase does"
-```
-
-Read a file:
-```sh
 bse-code -p "Read src/Program.cs and summarize it"
-```
-
-Write a file:
-```sh
 bse-code -p "Create a hello world C# file at hello.cs"
-```
-
-Run a shell command:
-```sh
 bse-code -p "List all .cs files in the project"
+
+# Use a specific model just for this run
+bse-code --model deepseek/deepseek-r1:free -p "Refactor this function"
 ```
 
 ---
 
-## Available Tools
+## Available AI Tools
 
-| Tool        | Description                        |
-|-------------|------------------------------------|
-| `read_file` | Reads the contents of a file       |
-| `Write`     | Writes content to a file           |
-| `Bash`      | Executes a shell command           |
+The model can invoke these tools on your machine:
+
+| Tool        | Description                              |
+|-------------|------------------------------------------|
+| `read_file` | Read the contents of a file             |
+| `Write`     | Write content to a file (creates dirs)  |
+| `Bash`      | Execute a shell command                 |
+
+Tool calls are shown inline with the file/command being used and a `✓`/`✗` result indicator.
 
 ---
 
 ## Configuration
 
-Environment variables override the saved config file:
+Environment variables always override the saved config file:
 
-| Environment Variable   | Required | Default                          | Description               |
-|------------------------|----------|----------------------------------|---------------------------|
-| `OPENROUTER_API_KEY`   | No*      | _(set via wizard)_               | Your OpenRouter API key   |
-| `OPENROUTER_MODEL`     | No       | _(set via wizard)_               | Model ID to use           |
-| `OPENROUTER_BASE_URL`  | No       | `https://openrouter.ai/api/v1`   | Override the API base URL |
+| Variable               | Default                        | Description                  |
+|------------------------|--------------------------------|------------------------------|
+| `OPENROUTER_API_KEY`   | _(set via wizard)_             | Your OpenRouter API key      |
+| `OPENROUTER_MODEL`     | _(set via wizard)_             | Model ID to use              |
+| `OPENROUTER_BASE_URL`  | `https://openrouter.ai/api/v1` | Override the API base URL    |
 
-\* Required only if config file doesn't exist yet.
-
-**Persist via environment (PowerShell):**
+**PowerShell (persist):**
 ```powershell
 [System.Environment]::SetEnvironmentVariable('OPENROUTER_API_KEY', 'your-key', 'User')
 [System.Environment]::SetEnvironmentVariable('OPENROUTER_MODEL',   'deepseek/deepseek-r1:free', 'User')
 ```
 
-**Persist via environment (bash):**
+**Bash (persist):**
 ```sh
 export OPENROUTER_API_KEY="your-key"
 export OPENROUTER_MODEL="deepseek/deepseek-r1:free"
