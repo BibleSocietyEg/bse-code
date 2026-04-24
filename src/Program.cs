@@ -152,7 +152,7 @@ else
 
 async Task RunReplAsync()
 {
-    PrintBanner(config.Model);
+    PrintBanner(config.Model, config.Provider);
 
     var messages = new List<ChatMessage> { new SystemChatMessage(BuildSystemPrompt()) };
     var opts     = BuildOptions();
@@ -403,7 +403,7 @@ static string? GetGitBranch()
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
 
-static void PrintBanner(string model)
+static void PrintBanner(string model, string provider)
 {
     Console.WriteLine();
     Console.ForegroundColor = UI.Accent;
@@ -416,6 +416,7 @@ static void PrintBanner(string model)
     Console.WriteLine("  │   ╚═════╝ ╚══════╝╚══════╝                │");
     Console.WriteLine("  ╰──────────────────────────────────────────╯");
     Console.ResetColor();
+    UI.Print($"  provider: {provider}", UI.Muted);
     UI.Print($"  model  : {model}", UI.Muted);
     UI.Print($"  theme  : {ThemeManager.Current.Name}", UI.Muted);
     UI.Print($"  cwd    : {Directory.GetCurrentDirectory()}", UI.Muted);
@@ -441,6 +442,7 @@ void PrintStats(List<ChatMessage> messages)
     UI.Print($"    🔧 tool calls : {sessionToolCalls}", UI.Muted);
     UI.Print($"    📨 messages   : {msgCount}", UI.Muted);
     UI.Print($"    🤖 model      : {config.Model}", UI.Muted);
+    UI.Print($"    🌐 provider   : {config.Provider}", UI.Muted);
     UI.Print($"    🎨 theme      : {ThemeManager.Current.Name}", UI.Muted);
     UI.Print($"    🧠 skills     : {SkillManager.All.Count}", UI.Muted);
     UI.Print($"    🔌 mcp tools  : {McpManager.Tools.Count}", UI.Muted);
@@ -502,7 +504,7 @@ static string Truncate(string s, int max) =>
 static void PrintHelp()
 {
     Console.WriteLine();
-    UI.Print("  🚀 BSE-Code — AI coding assistant powered by OpenRouter", UI.Accent);
+    UI.Print("  🚀 BSE-Code — AI coding assistant (OpenRouter, OpenAI, Ollama, LM Studio & more)", UI.Accent);
     Console.WriteLine();
     UI.Print("  Usage:", ConsoleColor.White);
     UI.Print("    bse-code                          Interactive REPL mode", UI.Muted);
@@ -522,12 +524,15 @@ static void PrintHelp()
     UI.Print("    !<cmd>   🔧 run a shell command directly", UI.Muted);
     Console.WriteLine();
     UI.Print("  Environment variables:", ConsoleColor.White);
-    UI.Print("    OPENROUTER_API_KEY   Your OpenRouter API key 🔑", UI.Muted);
-    UI.Print("    OPENROUTER_MODEL     Model ID to use 🤖", UI.Muted);
-    UI.Print("    OPENROUTER_BASE_URL  Override the API base URL 🌐", UI.Muted);
+    UI.Print("    BSE_PROVIDER    Provider name (OpenRouter, OpenAI, Anthropic, Google,", UI.Muted);
+    UI.Print("                    Ollama, LmStudio, LocalAiFoundry, Custom) 🌐", UI.Muted);
+    UI.Print("    BSE_API_KEY     API key for the selected provider 🔑", UI.Muted);
+    UI.Print("    BSE_MODEL       Model ID to use 🤖", UI.Muted);
+    UI.Print("    BSE_BASE_URL    Override the API base URL 🌐", UI.Muted);
+    UI.Print("    (Legacy: OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_BASE_URL)", UI.Muted);
     Console.WriteLine();
     UI.Print("  Config files:", ConsoleColor.White);
-    UI.Print("    ~/.bse-code/config.json   Main config", UI.Muted);
+    UI.Print("    ~/.bse-code/config.json   Main config (provider, api_key, model, base_url)", UI.Muted);
     UI.Print("    ~/.bse-code/mcp.json      MCP server definitions", UI.Muted);
     UI.Print("    ~/.bse-code/skills/       User-level skills (*.md)", UI.Muted);
     UI.Print("    ~/.bse-code/BSE.md        Global memory", UI.Muted);

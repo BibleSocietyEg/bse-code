@@ -1,12 +1,21 @@
 # BSE-Code
 
-An AI coding assistant CLI powered by OpenRouter. Understands natural language, reads and writes files, runs shell commands, supports MCP servers, skills, project memory, themes, and session management — right from your terminal.
+An AI coding assistant CLI that works with **any LLM provider** — OpenRouter, OpenAI, Anthropic, Google AI, Ollama, LM Studio, Local AI Foundry, or any OpenAI-compatible endpoint. Understands natural language, reads and writes files, runs shell commands, supports MCP servers, skills, project memory, themes, and session management — right from your terminal.
 
 ---
 
-## Prerequisites
+## Supported Providers
 
-- An [OpenRouter](https://openrouter.ai) API key (free tier available)
+| # | Provider | Models | API Key Required |
+|---|----------|--------|-----------------|
+| 1 | **OpenRouter** | 100+ models, free tier available | Yes (free) |
+| 2 | **OpenAI** | GPT-4o, o3, o1, GPT-3.5 | Yes |
+| 3 | **Anthropic** | Claude 3.7/3.5 Sonnet, Haiku, Opus | Yes |
+| 4 | **Google AI** | Gemini 2.5 Pro/Flash, 2.0, 1.5 | Yes (free tier) |
+| 5 | **Ollama** | llama3, mistral, qwen, deepseek… | No (local) |
+| 6 | **LM Studio** | Any model loaded in LM Studio | No (local) |
+| 7 | **Local AI Foundry** | Phi-4, Phi-3.5 Mini, and more | No (local) |
+| 8 | **Custom** | Any OpenAI-compatible endpoint | Optional |
 
 ---
 
@@ -48,10 +57,11 @@ dotnet tool update --global --add-source ./nupkg BSE_Code
 
 On first run, an interactive wizard will:
 
-1. Ask for your **OpenRouter API key** — get one free at https://openrouter.ai/keys
-2. Fetch the **live model list** from OpenRouter, grouped by Free / Paid
-3. Let you pick a model by number
-4. Save everything to `~/.bse-code/config.json`
+1. Ask you to **pick a provider** (OpenRouter, OpenAI, Ollama, etc.)
+2. Prompt for the **base URL** (pre-filled for known providers, customizable for local ones)
+3. Ask for an **API key** (skipped for local providers like Ollama/LM Studio)
+4. Show the **available models** for that provider and let you pick one
+5. Save everything to `~/.bse-code/config.json`
 
 Re-run the wizard any time:
 ```sh
@@ -61,6 +71,80 @@ bse-code --config
 Config location:
 - **Windows**: `%USERPROFILE%\.bse-code\config.json`
 - **Linux/macOS**: `~/.bse-code/config.json`
+
+---
+
+## Provider Quick-start
+
+### OpenRouter (free models available)
+```sh
+bse-code --config
+# Select [1] OpenRouter
+# Get a free key at https://openrouter.ai/keys
+# Pick any free model (Gemini 2.5 Pro, Llama 4, DeepSeek R1…)
+```
+
+### OpenAI
+```sh
+bse-code --config
+# Select [2] OpenAI
+# Enter your key from https://platform.openai.com/api-keys
+# Pick gpt-4o, o3-mini, etc.
+```
+
+### Anthropic
+```sh
+bse-code --config
+# Select [3] Anthropic
+# Enter your key from https://console.anthropic.com/settings/keys
+# Pick Claude 3.7 Sonnet, Claude 3.5 Haiku, etc.
+```
+
+### Google AI (Gemini)
+```sh
+bse-code --config
+# Select [4] Google AI
+# Enter your key from https://aistudio.google.com/app/apikey
+# Pick Gemini 2.5 Pro, Flash, etc.
+```
+
+### Ollama (fully local, no API key)
+```sh
+# 1. Install Ollama: https://ollama.com
+ollama pull llama3.2
+# 2. Configure bse-code
+bse-code --config
+# Select [5] Ollama
+# Accept default URL (http://localhost:11434/v1)
+# Pick from your pulled models
+```
+
+### LM Studio (fully local, no API key)
+```sh
+# 1. Open LM Studio, load a model, start the local server
+# 2. Configure bse-code
+bse-code --config
+# Select [6] LM Studio
+# Accept default URL (http://localhost:1234/v1)
+# Enter the model name shown in LM Studio
+```
+
+### Local AI Foundry
+```sh
+bse-code --config
+# Select [7] Local AI Foundry
+# Accept default URL (http://localhost:5272/v1)
+# Enter your deployed model name
+```
+
+### Custom / Any OpenAI-compatible endpoint
+```sh
+bse-code --config
+# Select [8] Custom
+# Enter your endpoint URL (e.g. http://my-server:8080/v1)
+# Enter API key if required
+# Enter model name
+```
 
 ---
 
@@ -81,6 +165,7 @@ bse-code
   │   ██████╔╝███████║███████╗                │
   │   ╚═════╝ ╚══════╝╚══════╝                │
   ╰──────────────────────────────────────────╯
+  provider: OpenRouter
   model  : google/gemini-2.5-pro-exp-03-25:free
   theme  : default
   cwd    : my-project
@@ -203,14 +288,14 @@ Type `/` and an inline menu appears immediately:
 
 ## Special Input Prefixes
 
-### `@` — File/directory injection (like Gemini CLI)
+### `@` — File/directory injection
 ```
 @src/Program.cs explain this file
 @src/ summarize all source files
 ```
 Injects file or directory contents directly into your prompt. Tab-completes paths.
 
-### `!` — Shell passthrough (like Gemini CLI)
+### `!` — Shell passthrough
 ```
 !git status
 !dotnet build
@@ -260,23 +345,6 @@ bse-code
 /init
 ```
 
-**Example BSE.md:**
-```markdown
-# My Project
-
-## Tech Stack
-- .NET 10, C#, ASP.NET Core
-
-## Coding Standards
-- Use record types for DTOs
-- Prefer async/await throughout
-- Write XML docs for public APIs
-
-## Development Commands
-dotnet run
-dotnet test
-```
-
 ---
 
 ## MCP (Model Context Protocol)
@@ -322,6 +390,57 @@ MCP tools are automatically available to the AI with the naming convention `mcp_
 
 ---
 
+## Configuration
+
+### Config file: `~/.bse-code/config.json`
+```json
+{
+  "provider": "OpenRouter",
+  "api_key": "sk-or-...",
+  "model": "google/gemini-2.5-pro-exp-03-25:free",
+  "base_url": "https://openrouter.ai/api/v1",
+  "theme": "default"
+}
+```
+
+For local providers (Ollama, LM Studio, Local AI Foundry), `api_key` is not needed:
+```json
+{
+  "provider": "Ollama",
+  "api_key": "local",
+  "model": "llama3.2",
+  "base_url": "http://localhost:11434/v1",
+  "theme": "default"
+}
+```
+
+### Environment variables (always override config file)
+
+| Variable | Description |
+|----------|-------------|
+| `BSE_PROVIDER` | Provider name (OpenRouter, OpenAI, Anthropic, Google, Ollama, LmStudio, LocalAiFoundry, Custom) |
+| `BSE_API_KEY` | API key for the selected provider |
+| `BSE_MODEL` | Model ID to use |
+| `BSE_BASE_URL` | Override the API base URL |
+
+Legacy variables `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `OPENROUTER_BASE_URL` are still supported as fallbacks.
+
+**PowerShell (persist):**
+```powershell
+[System.Environment]::SetEnvironmentVariable('BSE_PROVIDER', 'OpenAI', 'User')
+[System.Environment]::SetEnvironmentVariable('BSE_API_KEY', 'your-key', 'User')
+[System.Environment]::SetEnvironmentVariable('BSE_MODEL', 'gpt-4o', 'User')
+```
+
+**Bash (persist):**
+```sh
+export BSE_PROVIDER="Ollama"
+export BSE_MODEL="llama3.2"
+# No BSE_API_KEY needed for local providers
+```
+
+---
+
 ## Themes
 
 | Theme | Description |
@@ -344,45 +463,11 @@ bse-code --theme monokai
 
 ---
 
-## Configuration
-
-### Config file: `~/.bse-code/config.json`
-```json
-{
-  "api_key": "sk-...",
-  "model": "google/gemini-2.5-pro-exp-03-25:free",
-  "base_url": "https://openrouter.ai/api/v1",
-  "theme": "default"
-}
-```
-
-### Environment variables (always override config file)
-
-| Variable | Description |
-|----------|-------------|
-| `OPENROUTER_API_KEY` | Your OpenRouter API key |
-| `OPENROUTER_MODEL` | Model ID to use |
-| `OPENROUTER_BASE_URL` | Override the API base URL |
-
-**PowerShell (persist):**
-```powershell
-[System.Environment]::SetEnvironmentVariable('OPENROUTER_API_KEY', 'your-key', 'User')
-[System.Environment]::SetEnvironmentVariable('OPENROUTER_MODEL', 'deepseek/deepseek-r1:free', 'User')
-```
-
-**Bash (persist):**
-```sh
-export OPENROUTER_API_KEY="your-key"
-export OPENROUTER_MODEL="deepseek/deepseek-r1:free"
-```
-
----
-
 ## File Structure
 
 ```
 ~/.bse-code/
-├── config.json          # Main config (API key, model, theme)
+├── config.json          # Main config (provider, api_key, model, base_url, theme)
 ├── mcp.json             # MCP server definitions
 ├── BSE.md               # Global memory (injected into every session)
 └── skills/
