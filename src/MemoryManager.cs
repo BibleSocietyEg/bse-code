@@ -43,7 +43,15 @@ public static class MemoryManager
             if (!string.IsNullOrWhiteSpace(content))
                 _files.Add(new MemoryFile(path, content, label));
         }
-        catch { /* ignore read errors */ }
+        catch (IOException ex)
+        {
+            // Surface I/O errors so the user knows a memory file couldn't be read.
+            UI.Warn($"Could not read memory file '{path}': {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            UI.Warn($"Access denied reading memory file '{path}': {ex.Message}");
+        }
     }
 
     /// <summary>

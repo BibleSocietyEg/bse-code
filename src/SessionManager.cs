@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using OpenAI.Chat;
@@ -54,8 +56,11 @@ public static class SessionManager
     {
         get
         {
-            var cwd  = Directory.GetCurrentDirectory();
-            var hash = Math.Abs(cwd.GetHashCode()).ToString("x8");
+            var cwd   = Directory.GetCurrentDirectory();
+            // Use SHA-256 for a stable, collision-resistant, cross-run hash.
+            // GetHashCode() is non-deterministic across .NET versions and processes.
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(cwd));
+            var hash  = Convert.ToHexString(bytes)[..16].ToLowerInvariant();
             return Path.Combine(BaseDir, hash);
         }
     }
