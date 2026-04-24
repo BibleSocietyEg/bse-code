@@ -1,6 +1,6 @@
 {
   "name": "bse-code",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "AI coding assistant CLI — supports OpenRouter, OpenAI, Anthropic, Google AI, Ollama, LM Studio, Local AI Foundry, and any OpenAI-compatible endpoint",
   "keywords": ["ai", "cli", "coding", "assistant", "openrouter", "openai", "ollama", "lm-studio", "anthropic", "gemini", "local-llm"],
   "license": "MIT",
