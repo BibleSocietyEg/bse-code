@@ -46,11 +46,11 @@ public static class MemoryManager
         catch (IOException ex)
         {
             // Surface I/O errors so the user knows a memory file couldn't be read.
-            UI.Warn($"Could not read memory file '{path}': {ex.Message}");
+            UI.Warn($"😬 Could not read memory file '{path}': {ex.Message}");
         }
         catch (UnauthorizedAccessException ex)
         {
-            UI.Warn($"Access denied reading memory file '{path}': {ex.Message}");
+            UI.Warn($"🔒 Access denied reading memory file '{path}': {ex.Message}");
         }
     }
 

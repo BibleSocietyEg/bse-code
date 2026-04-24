@@ -91,7 +91,7 @@ public static class McpManager
         }
         catch (Exception ex)
         {
-            UI.Warn($"Failed to parse mcp.json: {ex.Message}");
+            UI.Warn($"😬 Failed to parse mcp.json: {ex.Message}");
             return;
         }
 
@@ -133,7 +133,7 @@ public static class McpManager
         }
         catch (Exception ex)
         {
-            UI.Warn($"MCP server '{serverName}': failed to discover tools — {ex.Message}");
+            UI.Warn($"🔌 MCP server '{serverName}': failed to discover tools — {ex.Message}");
         }
     }
 
@@ -143,7 +143,7 @@ public static class McpManager
     public static async Task<string> CallToolAsync(string serverName, string toolName, string argsJson)
     {
         if (!_activeServers.TryGetValue(serverName, out var server))
-            return $"ERROR: MCP server '{serverName}' not found or disabled.";
+            return $"❌ ERROR: MCP server '{serverName}' not found or disabled.";
 
         try
         {

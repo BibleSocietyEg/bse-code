@@ -56,7 +56,7 @@ public sealed class SlashCommandHandler
                 messages.RemoveAll(m => m is not SystemChatMessage);
                 if (messages.Count > 0)
                     messages[0] = new SystemChatMessage(_buildSystemPrompt());
-                UI.Print("  conversation cleared", UI.Muted);
+                UI.Print("  🧹 conversation cleared — fresh start!", UI.Muted);
                 break;
 
             case "/model":
@@ -64,11 +64,11 @@ public sealed class SlashCommandHandler
                 {
                     _config.Model = arg;
                     Client = _buildClient();
-                    UI.Success($"model switched to: {arg}");
+                    UI.Success($"🤖 model switched to: {arg}");
                 }
                 else
                 {
-                    UI.Print($"  current model: {_config.Model}", UI.Muted);
+                    UI.Print($"  🤖 current model: {_config.Model}", UI.Muted);
                 }
                 break;
 
@@ -145,11 +145,11 @@ public sealed class SlashCommandHandler
         {
             _config.Theme = arg;
             ConfigManager.SaveTheme(_config);
-            UI.Success($"theme set to: {arg}");
+            UI.Success($"🎨 theme set to: {arg}");
         }
         else
         {
-            UI.Error($"Unknown theme '{arg}'. Try: {string.Join(", ", ThemeManager.Names)}");
+            UI.Error($"Unknown theme '{arg}' 😕 Try: {string.Join(", ", ThemeManager.Names)}");
         }
     }
 
@@ -160,12 +160,12 @@ public sealed class SlashCommandHandler
         SkillManager.Reload();
         if (SkillManager.All.Count == 0)
         {
-            UI.Print("  No skills found.", UI.Muted);
+            UI.Print("  No skills found yet 🤷", UI.Muted);
             UI.Print("  Add .md files to ~/.bse-code/skills/ or .bse-code/skills/", UI.Muted);
         }
         else
         {
-            UI.Header("Skills");
+            UI.Header("Skills 🧠");
             foreach (var s in SkillManager.All)
             {
                 var level = s.IsUserLevel ? "user" : "project";
@@ -190,12 +190,12 @@ public sealed class SlashCommandHandler
             case "":
                 if (McpManager.Servers.Count == 0)
                 {
-                    UI.Print("  No MCP servers configured.", UI.Muted);
+                    UI.Print("  No MCP servers configured yet 🔌", UI.Muted);
                     UI.Print("  Edit ~/.bse-code/mcp.json to add servers.", UI.Muted);
                 }
                 else
                 {
-                    UI.Header("MCP Servers");
+                    UI.Header("MCP Servers 🔌");
                     foreach (var (name, srv) in McpManager.Servers)
                     {
                         Console.ForegroundColor = UI.McpColor;
@@ -204,7 +204,7 @@ public sealed class SlashCommandHandler
                         Console.WriteLine($"  {srv.Command} {string.Join(" ", srv.Args)}");
                         Console.ResetColor();
                     }
-                    UI.Header("MCP Tools");
+                    UI.Header("MCP Tools 🛠️");
                     foreach (var t in McpManager.Tools)
                     {
                         Console.ForegroundColor = UI.McpColor;
@@ -224,7 +224,7 @@ public sealed class SlashCommandHandler
                     foreach (var t in _toolRegistry.ToChatTools()) opts.Tools.Add(t);
                     foreach (var t in McpManager.ToChatTools())    opts.Tools.Add(t);
                 }
-                UI.Success($"MCP reloaded — {McpManager.Tools.Count} tools available");
+                UI.Success($"🔌 MCP reloaded — {McpManager.Tools.Count} tools ready to go!");
                 break;
 
             default:
@@ -245,12 +245,12 @@ public sealed class SlashCommandHandler
                 MemoryManager.Reload();
                 if (MemoryManager.Files.Count == 0)
                 {
-                    UI.Print("  No BSE.md files found.", UI.Muted);
+                    UI.Print("  No BSE.md files found yet 📭", UI.Muted);
                     UI.Print("  Create ./BSE.md or ~/.bse-code/BSE.md", UI.Muted);
                 }
                 else
                 {
-                    UI.Header("Memory files");
+                    UI.Header("Memory files 💾");
                     foreach (var f in MemoryManager.Files)
                         UI.Print($"    {f.Label}", UI.Muted);
                 }
@@ -266,14 +266,14 @@ public sealed class SlashCommandHandler
                 {
                     MemoryManager.AddNote(note);
                     RefreshSystemPrompt(messages);
-                    UI.Success("Note added to BSE.md");
+                    UI.Success("📝 Note added to BSE.md!");
                 }
                 break;
 
             case "refresh":
                 MemoryManager.Reload();
                 RefreshSystemPrompt(messages);
-                UI.Success("Memory refreshed");
+                UI.Success("🔄 Memory refreshed!");
                 break;
 
             default:
@@ -292,7 +292,7 @@ public sealed class SlashCommandHandler
             return;
         }
         SessionManager.Save(tag, _config.Model, messages);
-        UI.Success($"Session saved as '{tag}'");
+        UI.Success($"💾 Session saved as '{tag}'!");
     }
 
     // ── /resume ───────────────────────────────────────────────────────────────
@@ -304,11 +304,11 @@ public sealed class SlashCommandHandler
             var sessions = SessionManager.List();
             if (sessions.Count == 0)
             {
-                UI.Print("  No saved sessions.", UI.Muted);
+                UI.Print("  No saved sessions yet 📭", UI.Muted);
             }
             else
             {
-                UI.Header("Saved sessions");
+                UI.Header("Saved sessions 📂");
                 foreach (var s in sessions)
                 {
                     Console.ForegroundColor = UI.Accent;
@@ -325,14 +325,14 @@ public sealed class SlashCommandHandler
         var loaded = SessionManager.Resume(arg, out var meta);
         if (loaded is null)
         {
-            UI.Error($"Session '{arg}' not found.");
+            UI.Error($"Session '{arg}' not found 😕");
             return;
         }
 
         messages.Clear();
         messages.Add(new SystemChatMessage(_buildSystemPrompt()));
         messages.AddRange(loaded);
-        UI.Success($"Resumed session '{arg}' ({loaded.Count} messages)");
+        UI.Success($"▶️  Resumed session '{arg}' ({loaded.Count} messages) — welcome back!");
 
         if (meta?.Model is not null && meta.Model != _config.Model)
             UI.Warn($"Session was saved with model '{meta.Model}', current: '{_config.Model}'");
@@ -346,7 +346,7 @@ public sealed class SlashCommandHandler
         var userCount = messages.Count(m => m is UserChatMessage);
         if (userCount < 3)
         {
-            UI.Print("  Not enough history to compact.", UI.Muted);
+            UI.Print("  Not enough history to compact yet 🤏", UI.Muted);
             return;
         }
 
@@ -359,7 +359,7 @@ public sealed class SlashCommandHandler
         var summary = messages.LastOrDefault(m => m is AssistantChatMessage);
         messages.RemoveAll(m => m is not SystemChatMessage);
         if (summary is not null) messages.Add(summary);
-        UI.Success("Conversation compacted");
+        UI.Success("🗜️  Conversation compacted — nice and tidy!");
     }
 
     // ── /tools ────────────────────────────────────────────────────────────────
@@ -367,13 +367,13 @@ public sealed class SlashCommandHandler
     private void HandleTools()
     {
         Console.WriteLine();
-        UI.Header("Built-in tools");
+        UI.Header("Built-in tools 🔧");
         foreach (var name in _toolRegistry.ToolNames)
             UI.Print($"    {name}", UI.Muted);
 
         if (McpManager.Tools.Count > 0)
         {
-            UI.Header("MCP tools");
+            UI.Header("MCP tools 🔌");
             foreach (var t in McpManager.Tools)
             {
                 Console.ForegroundColor = UI.McpColor;
@@ -392,7 +392,7 @@ public sealed class SlashCommandHandler
         var bseMdPath = Path.Combine(Directory.GetCurrentDirectory(), "BSE.md");
         if (File.Exists(bseMdPath) && string.IsNullOrEmpty(arg))
         {
-            UI.Warn("BSE.md already exists. Use /init --force to overwrite.");
+            UI.Warn("BSE.md already exists 📄 Use /init --force to overwrite.");
             return;
         }
 
@@ -419,7 +419,7 @@ public sealed class SlashCommandHandler
 
         MemoryManager.Reload();
         RefreshSystemPrompt(messages);
-        UI.Success($"Created BSE.md in {Directory.GetCurrentDirectory()}");
+        UI.Success($"🎉 Created BSE.md in {Directory.GetCurrentDirectory()}");
     }
 
     // ── Dynamic skill invocation ──────────────────────────────────────────────
@@ -431,12 +431,12 @@ public sealed class SlashCommandHandler
         var skill     = SkillManager.Find(skillName);
         if (skill is null)
         {
-            UI.Print($"  unknown command: /{skillName}  (try /help)", UI.Muted);
+            UI.Print($"  🤔 unknown command: /{skillName}  (try /help)", UI.Muted);
             return;
         }
 
         Console.ForegroundColor = UI.SkillColor;
-        Console.WriteLine($"  ◆ skill: {skill.Name}");
+        Console.WriteLine($"  ◆ skill: {skill.Name} 🧠");
         Console.ResetColor();
 
         var skillPrompt = string.IsNullOrEmpty(arg)
@@ -458,34 +458,34 @@ public sealed class SlashCommandHandler
     {
         Console.WriteLine();
         UI.Print("  Core:", UI.Accent);
-        UI.Print("    /clear              clear conversation history", UI.Muted);
-        UI.Print("    /model [id]         show or switch model", UI.Muted);
-        UI.Print("    /compact [hint]     summarize history to save tokens", UI.Muted);
-        UI.Print("    /stats              show session statistics", UI.Muted);
-        UI.Print("    /tools              list available tools", UI.Muted);
-        UI.Print("    /help               show this help", UI.Muted);
-        UI.Print("    /exit               quit", UI.Muted);
+        UI.Print("    /clear              🧹 clear conversation history", UI.Muted);
+        UI.Print("    /model [id]         🤖 show or switch model", UI.Muted);
+        UI.Print("    /compact [hint]     🗜️  summarize history to save tokens", UI.Muted);
+        UI.Print("    /stats              📊 show session statistics", UI.Muted);
+        UI.Print("    /tools              🔧 list available tools", UI.Muted);
+        UI.Print("    /help               ❓ show this help", UI.Muted);
+        UI.Print("    /exit               👋 quit", UI.Muted);
         Console.WriteLine();
         UI.Print("  Appearance:", UI.Accent);
-        UI.Print("    /theme [name]       list or set color theme", UI.Muted);
+        UI.Print("    /theme [name]       🎨 list or set color theme", UI.Muted);
         Console.WriteLine();
         UI.Print("  Skills:", UI.SkillColor);
-        UI.Print("    /skills             list loaded skills", UI.Muted);
-        UI.Print("    /<skill-name> [arg] invoke a skill", UI.Muted);
+        UI.Print("    /skills             🧠 list loaded skills", UI.Muted);
+        UI.Print("    /<skill-name> [arg] ⚡ invoke a skill", UI.Muted);
         Console.WriteLine();
         UI.Print("  MCP:", UI.McpColor);
-        UI.Print("    /mcp                list MCP servers and tools", UI.Muted);
-        UI.Print("    /mcp reload         reload MCP servers", UI.Muted);
+        UI.Print("    /mcp                🔌 list MCP servers and tools", UI.Muted);
+        UI.Print("    /mcp reload         🔄 reload MCP servers", UI.Muted);
         Console.WriteLine();
         UI.Print("  Memory:", UI.Accent);
-        UI.Print("    /memory             show loaded BSE.md files", UI.Muted);
-        UI.Print("    /memory add <text>  append note to ./BSE.md", UI.Muted);
-        UI.Print("    /memory refresh     reload BSE.md files", UI.Muted);
-        UI.Print("    /init               create BSE.md in current directory", UI.Muted);
+        UI.Print("    /memory             💾 show loaded BSE.md files", UI.Muted);
+        UI.Print("    /memory add <text>  📝 append note to ./BSE.md", UI.Muted);
+        UI.Print("    /memory refresh     🔄 reload BSE.md files", UI.Muted);
+        UI.Print("    /init               🎉 create BSE.md in current directory", UI.Muted);
         Console.WriteLine();
         UI.Print("  Sessions:", UI.Accent);
-        UI.Print("    /save <tag>         save conversation", UI.Muted);
-        UI.Print("    /resume [tag]       list or resume a saved session", UI.Muted);
+        UI.Print("    /save <tag>         💾 save conversation", UI.Muted);
+        UI.Print("    /resume [tag]       ▶️  list or resume a saved session", UI.Muted);
         Console.WriteLine();
     }
 }

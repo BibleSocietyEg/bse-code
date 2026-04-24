@@ -121,7 +121,7 @@ if (inlinePrompt is not null)
 {
     if (string.IsNullOrWhiteSpace(inlinePrompt))
     {
-        UI.Error("Prompt must not be empty.");
+        UI.Error("Prompt must not be empty. Give me something to work with! 😅");
         Environment.Exit(1);
     }
 
@@ -176,7 +176,7 @@ async Task RunReplAsync()
         if (input is null || input.Trim() is "/exit" or "/quit" or "exit" or "quit")
         {
             Console.WriteLine();
-            UI.Print("  bye 👋", UI.Muted);
+            UI.Print("  See ya! 👋 Happy coding! 🚀", UI.Muted);
             Console.WriteLine();
             break;
         }
@@ -189,7 +189,7 @@ async Task RunReplAsync()
             var shellCmd = input.TrimStart()[1..].Trim();
             if (string.IsNullOrWhiteSpace(shellCmd))
             {
-                UI.Warn("Usage: !<command>  e.g. !git status");
+                UI.Warn("🔧 Usage: !<command>  e.g. !git status");
                 continue;
             }
             var result = BashTool.RunShell(shellCmd);
@@ -245,7 +245,7 @@ async Task RunTurnAsync(
 
     while (true)
     {
-        using var spinner          = new Spinner("  Thinking");
+        using var spinner          = new Spinner("  ✨ Thinking");
         var contentBuilder         = new StringBuilder();
         var accumulators           = new Dictionary<int, ToolCallAccumulator>();
 
@@ -417,13 +417,13 @@ static void PrintBanner(string model)
     UI.Print($"  theme  : {ThemeManager.Current.Name}", UI.Muted);
     UI.Print($"  cwd    : {Directory.GetCurrentDirectory()}", UI.Muted);
     if (SkillManager.All.Count > 0)
-        UI.Print($"  skills : {SkillManager.All.Count} loaded", UI.SkillColor);
+        UI.Print($"  🧠 skills : {SkillManager.All.Count} loaded", UI.SkillColor);
     if (McpManager.Tools.Count > 0)
-        UI.Print($"  mcp    : {McpManager.Tools.Count} tools from {McpManager.Servers.Count} server(s)", UI.McpColor);
+        UI.Print($"  🔌 mcp    : {McpManager.Tools.Count} tools from {McpManager.Servers.Count} server(s)", UI.McpColor);
     if (MemoryManager.Files.Count > 0)
-        UI.Print($"  memory : {MemoryManager.Files.Count} BSE.md file(s) loaded", UI.Muted);
+        UI.Print($"  💾 memory : {MemoryManager.Files.Count} BSE.md file(s) loaded", UI.Muted);
     Console.ForegroundColor = UI.Muted;
-    Console.WriteLine("  type /help for commands · /exit to quit");
+    Console.WriteLine("  type /help for commands · /exit to quit 🚀");
     Console.ResetColor();
 }
 
@@ -432,15 +432,15 @@ void PrintStats(List<ChatMessage> messages)
     var elapsed  = DateTime.UtcNow - sessionStart;
     var msgCount = messages.Count(m => m is UserChatMessage or AssistantChatMessage);
     Console.WriteLine();
-    UI.Header("Session stats");
-    UI.Print($"    duration   : {elapsed:hh\\:mm\\:ss}", UI.Muted);
-    UI.Print($"    turns      : {sessionTurns}", UI.Muted);
-    UI.Print($"    tool calls : {sessionToolCalls}", UI.Muted);
-    UI.Print($"    messages   : {msgCount}", UI.Muted);
-    UI.Print($"    model      : {config.Model}", UI.Muted);
-    UI.Print($"    theme      : {ThemeManager.Current.Name}", UI.Muted);
-    UI.Print($"    skills     : {SkillManager.All.Count}", UI.Muted);
-    UI.Print($"    mcp tools  : {McpManager.Tools.Count}", UI.Muted);
+    UI.Header("Session stats 📊");
+    UI.Print($"    ⏱  duration   : {elapsed:hh\\:mm\\:ss}", UI.Muted);
+    UI.Print($"    💬 turns      : {sessionTurns}", UI.Muted);
+    UI.Print($"    🔧 tool calls : {sessionToolCalls}", UI.Muted);
+    UI.Print($"    📨 messages   : {msgCount}", UI.Muted);
+    UI.Print($"    🤖 model      : {config.Model}", UI.Muted);
+    UI.Print($"    🎨 theme      : {ThemeManager.Current.Name}", UI.Muted);
+    UI.Print($"    🧠 skills     : {SkillManager.All.Count}", UI.Muted);
+    UI.Print($"    🔌 mcp tools  : {McpManager.Tools.Count}", UI.Muted);
 }
 
 static void PrintToolCall(string name, string argsJson)
@@ -499,7 +499,7 @@ static string Truncate(string s, int max) =>
 static void PrintHelp()
 {
     Console.WriteLine();
-    UI.Print("  BSE-Code — AI coding assistant powered by OpenRouter", UI.Accent);
+    UI.Print("  🚀 BSE-Code — AI coding assistant powered by OpenRouter", UI.Accent);
     Console.WriteLine();
     UI.Print("  Usage:", ConsoleColor.White);
     UI.Print("    bse-code                          Interactive REPL mode", UI.Muted);
@@ -515,13 +515,13 @@ static void PrintHelp()
     SlashCommandHandler.PrintSlashHelp();
     Console.WriteLine();
     UI.Print("  Special prefixes:", ConsoleColor.White);
-    UI.Print("    @<path>  inject file/directory content into prompt", UI.Muted);
-    UI.Print("    !<cmd>   run a shell command directly", UI.Muted);
+    UI.Print("    @<path>  📂 inject file/directory content into prompt", UI.Muted);
+    UI.Print("    !<cmd>   🔧 run a shell command directly", UI.Muted);
     Console.WriteLine();
     UI.Print("  Environment variables:", ConsoleColor.White);
-    UI.Print("    OPENROUTER_API_KEY   Your OpenRouter API key", UI.Muted);
-    UI.Print("    OPENROUTER_MODEL     Model ID to use", UI.Muted);
-    UI.Print("    OPENROUTER_BASE_URL  Override the API base URL", UI.Muted);
+    UI.Print("    OPENROUTER_API_KEY   Your OpenRouter API key 🔑", UI.Muted);
+    UI.Print("    OPENROUTER_MODEL     Model ID to use 🤖", UI.Muted);
+    UI.Print("    OPENROUTER_BASE_URL  Override the API base URL 🌐", UI.Muted);
     Console.WriteLine();
     UI.Print("  Config files:", ConsoleColor.White);
     UI.Print("    ~/.bse-code/config.json   Main config", UI.Muted);
@@ -548,7 +548,7 @@ static void ValidateUnknownFlags(string[] args, string? inlinePrompt, string? mo
     {
         if (a.StartsWith('-') && !knownFlags.Contains(a))
         {
-            UI.Error($"Unknown flag: {a}");
+            UI.Error($"Unknown flag: {a} 🤔");
             UI.Print("Run bse-code --help for usage.", UI.Muted);
             Environment.Exit(1);
         }

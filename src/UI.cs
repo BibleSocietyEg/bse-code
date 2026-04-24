@@ -33,28 +33,28 @@ public static class UI
     public static void Error(string text)
     {
         Console.ForegroundColor = ErrColor;
-        Console.Error.WriteLine($"  ✗  {text}");
+        Console.Error.WriteLine($"  ❌  {text}");
         Console.ResetColor();
     }
 
     public static void Warn(string text)
     {
         Console.ForegroundColor = WarnColor;
-        Console.WriteLine($"  ⚠  {text}");
+        Console.WriteLine($"  ⚠️  {text}");
         Console.ResetColor();
     }
 
     public static void Success(string text)
     {
         Console.ForegroundColor = SuccessColor;
-        Console.WriteLine($"  ✓  {text}");
+        Console.WriteLine($"  ✅  {text}");
         Console.ResetColor();
     }
 
     public static void Header(string text)
     {
         Console.ForegroundColor = Accent;
-        Console.WriteLine($"  ── {text} ──");
+        Console.WriteLine($"  ✨ {text} ✨");
         Console.ResetColor();
     }
 

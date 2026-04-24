@@ -124,7 +124,7 @@ public static class ConfigManager
     {
         Console.WriteLine();
         Console.WriteLine("╔══════════════════════════════════════════╗");
-        Console.WriteLine("║        BSE-Code  ·  First-run setup      ║");
+        Console.WriteLine("║   🚀  BSE-Code  ·  First-run setup  🚀   ║");
         Console.WriteLine("╚══════════════════════════════════════════╝");
         Console.WriteLine();
 
@@ -132,17 +132,17 @@ public static class ConfigManager
         string apiKey;
         if (!string.IsNullOrEmpty(envKey))
         {
-            Console.WriteLine($"✔  API key loaded from OPENROUTER_API_KEY env var.");
+            Console.WriteLine($"✅  API key loaded from OPENROUTER_API_KEY env var.");
             apiKey = envKey;
         }
         else
         {
-            Console.WriteLine("  Get your free API key at: https://openrouter.ai/keys");
+            Console.WriteLine("  🔑 Get your free API key at: https://openrouter.ai/keys");
             Console.Write("  Enter your OpenRouter API key: ");
             apiKey = ReadSecret();
             if (string.IsNullOrWhiteSpace(apiKey))
             {
-                Console.Error.WriteLine("API key is required.");
+                Console.Error.WriteLine("❌ API key is required.");
                 Environment.Exit(1);
             }
         }
@@ -151,7 +151,7 @@ public static class ConfigManager
         string model;
         if (!string.IsNullOrEmpty(envModel))
         {
-            Console.WriteLine($"✔  Model loaded from OPENROUTER_MODEL env var: {envModel}");
+            Console.WriteLine($"✅  Model loaded from OPENROUTER_MODEL env var: {envModel}");
             model = envModel;
         }
         else
@@ -169,7 +169,7 @@ public static class ConfigManager
         Save(config);
 
         Console.WriteLine();
-        Console.WriteLine($"✔  Config saved to: {ConfigFile}");
+        Console.WriteLine($"🎉  Config saved to: {ConfigFile}");
         Console.WriteLine($"   Model : {config.Model}");
         Console.WriteLine();
         PrintEnvHint(config);
@@ -186,7 +186,7 @@ public static class ConfigManager
     private static async Task<string> PickModelAsync(string apiKey, string baseUrl)
     {
         Console.WriteLine();
-        Console.WriteLine("  Fetching available models from OpenRouter...");
+        Console.WriteLine("  🤖 Fetching available models from OpenRouter...");
 
         var categories = await FetchModelsAsync(apiKey, baseUrl);
 
@@ -220,7 +220,7 @@ public static class ConfigManager
             choice = 1;
 
         var selected = flat[choice - 1];
-        Console.WriteLine($"  ✔  Selected: {selected.Name}");
+        Console.WriteLine($"  ✅  Selected: {selected.Name} — great choice!");
         return selected.Id;
     }
 
@@ -270,14 +270,14 @@ public static class ConfigManager
             free.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
             paid.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
 
-            Console.WriteLine($"  Found {free.Count} free and {paid.Count} paid models.");
+            Console.WriteLine($"  🎉 Found {free.Count} free and {paid.Count} paid models.");
 
             return [("Free Models ✦ $0", free), ("Paid Models", paid)];
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.WriteLine($"  ⚠  Could not fetch models ({ex.GetType().Name}). Showing built-in list.");
+            Console.WriteLine($"  ⚠️  Could not fetch models ({ex.GetType().Name}). Showing built-in list.");
             Console.ResetColor();
             return FallbackModels;
         }
@@ -344,7 +344,7 @@ public static class ConfigManager
         bool isWin = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
         Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine("  ── Optional: set via environment variables instead ──");
+        Console.WriteLine("  ── 💡 Optional: set via environment variables instead ──");
         if (isWin)
         {
             Console.WriteLine($"  [System.Environment]::SetEnvironmentVariable('OPENROUTER_API_KEY', '<your-key>', 'User')");
