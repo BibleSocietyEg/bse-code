@@ -22,6 +22,10 @@ public class AppConfig
     /// <summary>OpenRouter-compatible API base URL.</summary>
     [JsonPropertyName("base_url")]
     public string BaseUrl { get; set; } = "https://openrouter.ai/api/v1";
+
+    /// <summary>Active color theme name.</summary>
+    [JsonPropertyName("theme")]
+    public string Theme { get; set; } = "default";
 }
 
 // ── OpenRouter model list ─────────────────────────────────────────────────────
@@ -286,6 +290,19 @@ public static class ConfigManager
     {
         Directory.CreateDirectory(ConfigDir);
         File.WriteAllText(ConfigFile, JsonSerializer.Serialize(config, JsonOpts));
+    }
+
+    /// <summary>Persists only the theme change to config.json.</summary>
+    public static void SaveTheme(AppConfig config)
+    {
+        if (!File.Exists(ConfigFile)) return;
+        try
+        {
+            var existing = Load();
+            existing.Theme = config.Theme;
+            Save(existing);
+        }
+        catch { /* best-effort */ }
     }
 
     /// <summary>Reads and deserializes the config from ~/.bse-code/config.json.</summary>
