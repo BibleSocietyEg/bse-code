@@ -293,12 +293,14 @@ public static class InteractiveInput
             if (k.Key == ConsoleKey.UpArrow)
             {
                 selected = selected > 0 ? selected - 1 : allItems.Count - 1;
+                ClearPickerLines(allItems.Count);
                 continue;
             }
 
             if (k.Key == ConsoleKey.DownArrow)
             {
                 selected = selected < allItems.Count - 1 ? selected + 1 : 0;
+                ClearPickerLines(allItems.Count);
                 continue;
             }
 

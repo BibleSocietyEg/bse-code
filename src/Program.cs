@@ -6,6 +6,9 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 
+// ── Console encoding (ensures Unicode symbols render correctly on Windows) ────
+Console.OutputEncoding = System.Text.Encoding.UTF8;
+
 // ── Session stats ─────────────────────────────────────────────────────────────
 var sessionStart     = DateTime.UtcNow;
 var sessionTurns     = 0;
