@@ -10,7 +10,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>bse-code</ToolCommandName>
     <PackageId>BSE_Code</PackageId>
-    <Version>1.3.0</Version>
+    <Version>1.4.0</Version>
     <Description>AI coding assistant CLI powered by OpenRouter</Description>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>

@@ -84,10 +84,10 @@ bse-code
   model  : google/gemini-2.5-pro-exp-03-25:free
   theme  : default
   cwd    : my-project
-  skills : 2 loaded
-  mcp    : 5 tools from 1 server(s)
-  memory : 1 BSE.md file(s) loaded
-  type /help for commands · /exit to quit
+  🧠 skills : 2 loaded
+  🔌 mcp    : 5 tools from 1 server(s)
+  💾 memory : 1 BSE.md file(s) loaded
+  type /help for commands · /exit to quit 🚀
 
  my-project (main) ❯ 
 ```
@@ -163,6 +163,44 @@ Built-in themes: `default`, `dracula`, `monokai`, `ocean`, `forest`, `light`
 
 ---
 
+## Interactive Input
+
+The REPL uses a fully interactive input reader — no more typing commands blind.
+
+### `/` — Slash command picker
+Type `/` and an inline menu appears immediately:
+
+```
+  /  ↑↓ navigate · Enter select · Esc cancel
+  ▶ /clear                🧹 clear conversation history
+    /model                🤖 show or switch model
+    /compact              🗜️  summarize history to save tokens
+    /theme                🎨 list or set color theme
+    /skills               🧠 list loaded skills
+    …
+```
+
+- **Arrow keys** navigate the list
+- **Type more characters** to filter live (e.g. `/th` narrows to `/theme`)
+- **Enter** selects, **Esc** cancels and lets you type manually
+- **Tab** completes the top match
+- Skills are included automatically alongside built-in commands
+
+### History navigation
+- **↑ / ↓** arrows cycle through previous inputs (like a shell)
+- Your draft is preserved when you browse back
+
+### Cursor editing
+- **← / →** move the cursor within the line
+- **Home / End** jump to start/end
+- **Backspace / Delete** work at any cursor position
+
+### Tab completion
+- On a `/...` input: completes or opens the picker
+- On an `@...` input: completes file paths from the filesystem
+
+---
+
 ## Special Input Prefixes
 
 ### `@` — File/directory injection (like Gemini CLI)
@@ -170,7 +208,7 @@ Built-in themes: `default`, `dracula`, `monokai`, `ocean`, `forest`, `light`
 @src/Program.cs explain this file
 @src/ summarize all source files
 ```
-Injects file or directory contents directly into your prompt.
+Injects file or directory contents directly into your prompt. Tab-completes paths.
 
 ### `!` — Shell passthrough (like Gemini CLI)
 ```
