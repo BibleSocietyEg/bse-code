@@ -63,6 +63,13 @@ Once installed, run from anywhere:
 bse-code -p "<your prompt>"
 ```
 
+Other commands:
+```sh
+bse-code --config         # Re-run the setup wizard
+bse-code --version        # Show version
+bse-code --help           # Show help
+```
+
 ---
 
 ## Examples

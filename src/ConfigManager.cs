@@ -5,24 +5,42 @@ using System.Text.Json.Serialization;
 
 // ── Config model ──────────────────────────────────────────────────────────────
 
+/// <summary>
+/// Application configuration persisted to ~/.bse-code/config.json.
+/// Properties can be overridden by environment variables at runtime.
+/// </summary>
 public class AppConfig
 {
+    /// <summary>OpenRouter API key for authentication.</summary>
     [JsonPropertyName("api_key")]
     public string ApiKey { get; set; } = "";
 
+    /// <summary>Model identifier (e.g., "google/gemini-2.5-pro-exp-03-25:free").</summary>
     [JsonPropertyName("model")]
     public string Model { get; set; } = "z-ai/glm-4.5-air:free";
 
+    /// <summary>OpenRouter-compatible API base URL.</summary>
     [JsonPropertyName("base_url")]
     public string BaseUrl { get; set; } = "https://openrouter.ai/api/v1";
 }
 
 // ── OpenRouter model list ─────────────────────────────────────────────────────
 
+/// <summary>
+/// Represents a single model available on OpenRouter.
+/// </summary>
+/// <param name="Id">The model identifier used in API calls (e.g., "openai/gpt-4o").</param>
+/// <param name="Name">Human-readable display name.</param>
+/// <param name="IsFree">Whether the model has zero prompt cost.</param>
 public record ModelEntry(string Id, string Name, bool IsFree);
 
 // ── Manager ───────────────────────────────────────────────────────────────────
 
+/// <summary>
+/// Manages application configuration: loading from disk, persisting changes,
+/// and running the interactive first-run setup wizard.
+/// Config file location: ~/.bse-code/config.json
+/// </summary>
 public static class ConfigManager
 {
     private static readonly string ConfigDir  = Path.Combine(
@@ -62,6 +80,14 @@ public static class ConfigManager
 
     // ── Public entry point ────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Loads configuration from disk, falling back to the interactive setup wizard
+    /// if no config file exists or <paramref name="forceReconfigure"/> is true.
+    /// Environment variables (OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_BASE_URL)
+    /// always take precedence over saved values.
+    /// </summary>
+    /// <param name="forceReconfigure">When true, runs the setup wizard even if a config file exists.</param>
+    /// <returns>The resolved application configuration.</returns>
     public static async Task<AppConfig> LoadOrSetupAsync(bool forceReconfigure = false)
     {
         // Env vars always win
@@ -85,6 +111,10 @@ public static class ConfigManager
 
     // ── Setup wizard ──────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Runs the interactive first-run setup wizard: prompts for API key,
+    /// lets the user pick a model, saves config to disk, and prints env var hints.
+    /// </summary>
     private static async Task<AppConfig> RunSetupWizardAsync(
         string? envKey, string? envModel, string? envBase)
     {
@@ -145,6 +175,10 @@ public static class ConfigManager
 
     // ── Model picker ──────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Displays available models grouped by free/paid and prompts the user to select one.
+    /// </summary>
+    /// <returns>The selected model's ID string.</returns>
     private static async Task<string> PickModelAsync(string apiKey, string baseUrl)
     {
         Console.WriteLine();
@@ -188,6 +222,10 @@ public static class ConfigManager
 
     // ── Fetch live model list from OpenRouter ─────────────────────────────────
 
+    /// <summary>
+    /// Fetches the live model list from the OpenRouter /models endpoint.
+    /// Falls back to <see cref="FallbackModels"/> on network or parse errors.
+    /// </summary>
     private static async Task<List<(string Category, List<ModelEntry> Models)>> FetchModelsAsync(
         string apiKey, string baseUrl)
     {
@@ -232,10 +270,10 @@ public static class ConfigManager
 
             return [("Free Models ✦ $0", free), ("Paid Models", paid)];
         }
-        catch
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.WriteLine("  ⚠  Could not reach OpenRouter API — showing built-in model list.");
+            Console.WriteLine($"  ⚠  Could not fetch models ({ex.GetType().Name}). Showing built-in list.");
             Console.ResetColor();
             return FallbackModels;
         }
@@ -243,12 +281,14 @@ public static class ConfigManager
 
     // ── Persist ───────────────────────────────────────────────────────────────
 
+    /// <summary>Serializes and writes the config to ~/.bse-code/config.json.</summary>
     private static void Save(AppConfig config)
     {
         Directory.CreateDirectory(ConfigDir);
         File.WriteAllText(ConfigFile, JsonSerializer.Serialize(config, JsonOpts));
     }
 
+    /// <summary>Reads and deserializes the config from ~/.bse-code/config.json.</summary>
     private static AppConfig Load()
     {
         var json = File.ReadAllText(ConfigFile);
@@ -278,6 +318,10 @@ public static class ConfigManager
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Prints platform-specific instructions for setting config via environment variables.
+    /// API key values are masked for security.
+    /// </summary>
     private static void PrintEnvHint(AppConfig config)
     {
         bool isWin = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
@@ -286,12 +330,12 @@ public static class ConfigManager
         Console.WriteLine("  ── Optional: set via environment variables instead ──");
         if (isWin)
         {
-            Console.WriteLine($"  [System.Environment]::SetEnvironmentVariable('OPENROUTER_API_KEY', '{config.ApiKey}', 'User')");
+            Console.WriteLine($"  [System.Environment]::SetEnvironmentVariable('OPENROUTER_API_KEY', '<your-key>', 'User')");
             Console.WriteLine($"  [System.Environment]::SetEnvironmentVariable('OPENROUTER_MODEL',   '{config.Model}',  'User')");
         }
         else
         {
-            Console.WriteLine($"  export OPENROUTER_API_KEY=\"{config.ApiKey}\"");
+            Console.WriteLine($"  export OPENROUTER_API_KEY=\"<your-key>\"");
             Console.WriteLine($"  export OPENROUTER_MODEL=\"{config.Model}\"");
         }
         Console.ResetColor();
