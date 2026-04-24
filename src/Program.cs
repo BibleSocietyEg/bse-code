@@ -171,7 +171,7 @@ async Task RunReplAsync()
         Console.Write("❯ ");
         Console.ResetColor();
 
-        var input = Console.ReadLine();
+        var input = InteractiveInput.ReadLine();
 
         if (input is null || input.Trim() is "/exit" or "/quit" or "exit" or "quit")
         {
