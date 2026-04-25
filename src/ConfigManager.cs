@@ -73,7 +73,7 @@ public record ModelEntry(string Id, string Name, bool IsFree);
 /// </summary>
 public static class ConfigManager
 {
-    private static readonly string ConfigDir  = Path.Combine(
+    private static readonly string ConfigDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".bse-code");
     private static readonly string ConfigFile = Path.Combine(ConfigDir, "config.json");
 
@@ -221,21 +221,22 @@ public static class ConfigManager
     public static async Task<AppConfig> LoadOrSetupAsync(bool forceReconfigure = false)
     {
         // Env vars always win
-        var envKey      = Environment.GetEnvironmentVariable("BSE_API_KEY")
+        var envKey = Environment.GetEnvironmentVariable("BSE_API_KEY")
                        ?? Environment.GetEnvironmentVariable("OPENROUTER_API_KEY");
-        var envModel    = Environment.GetEnvironmentVariable("BSE_MODEL")
+        var envModel = Environment.GetEnvironmentVariable("BSE_MODEL")
                        ?? Environment.GetEnvironmentVariable("OPENROUTER_MODEL");
-        var envBase     = Environment.GetEnvironmentVariable("BSE_BASE_URL")
+        var envBase = Environment.GetEnvironmentVariable("BSE_BASE_URL")
                        ?? Environment.GetEnvironmentVariable("OPENROUTER_BASE_URL");
         var envProvider = Environment.GetEnvironmentVariable("BSE_PROVIDER");
 
         if (!forceReconfigure && File.Exists(ConfigFile))
         {
             var saved = Load();
-            if (!string.IsNullOrEmpty(envKey))      saved.ApiKey   = envKey;
-            if (!string.IsNullOrEmpty(envModel))    saved.Model    = envModel;
-            if (!string.IsNullOrEmpty(envBase))     saved.BaseUrl  = envBase;
+            if (!string.IsNullOrEmpty(envKey)) saved.ApiKey = envKey;
+            if (!string.IsNullOrEmpty(envModel)) saved.Model = envModel;
+            if (!string.IsNullOrEmpty(envBase)) saved.BaseUrl = envBase;
             if (!string.IsNullOrEmpty(envProvider)) saved.Provider = envProvider;
+            ValidateBaseUrl(saved);
             return saved;
         }
 
@@ -313,11 +314,12 @@ public static class ConfigManager
         var config = new AppConfig
         {
             Provider = providerDef.Provider.ToString(),
-            ApiKey   = apiKey,
-            Model    = model,
-            BaseUrl  = baseUrl,
+            ApiKey = apiKey,
+            Model = model,
+            BaseUrl = baseUrl,
         };
 
+        ValidateBaseUrl(config);
         Save(config);
 
         Console.WriteLine();
@@ -436,7 +438,7 @@ public static class ConfigManager
         Console.WriteLine();
 
         int index = 1;
-        var flat  = new List<ModelEntry>();
+        var flat = new List<ModelEntry>();
 
         foreach (var (category, models) in categories)
         {
@@ -497,9 +499,9 @@ public static class ConfigManager
                     new AuthenticationHeaderValue("Bearer", apiKey);
             http.Timeout = TimeSpan.FromSeconds(10);
 
-            var url  = baseUrl.TrimEnd('/') + "/models";
+            var url = baseUrl.TrimEnd('/') + "/models";
             var json = await http.GetStringAsync(url);
-            var doc  = JsonDocument.Parse(json);
+            var doc = JsonDocument.Parse(json);
 
             // Ollama returns { "models": [...] }, OpenRouter returns { "data": [...] }
             JsonElement arr;
@@ -517,12 +519,12 @@ public static class ConfigManager
                 string id, name;
                 if (item.TryGetProperty("id", out var idEl))
                 {
-                    id   = idEl.GetString() ?? "";
+                    id = idEl.GetString() ?? "";
                     name = item.TryGetProperty("name", out var n) ? n.GetString() ?? id : id;
                 }
                 else if (item.TryGetProperty("model", out var modelEl))
                 {
-                    id   = modelEl.GetString() ?? "";
+                    id = modelEl.GetString() ?? "";
                     name = item.TryGetProperty("name", out var n2) ? n2.GetString() ?? id : id;
                 }
                 else continue;
@@ -537,7 +539,7 @@ public static class ConfigManager
                 }
 
                 if (isFree) free.Add(new(id, name, true));
-                else        paid.Add(new(id, name, false));
+                else paid.Add(new(id, name, false));
             }
 
             free.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
@@ -558,6 +560,20 @@ public static class ConfigManager
             Console.WriteLine($"  ⚠️  Could not fetch models ({ex.GetType().Name}). Showing built-in list.");
             Console.ResetColor();
             return FallbackModels.GetValueOrDefault(def.Provider) ?? [];
+        }
+    }
+
+    // ── URL validation ────────────────────────────────────────────────────────
+
+    internal static void ValidateBaseUrl(AppConfig config)
+    {
+        if (string.IsNullOrWhiteSpace(config.BaseUrl)) return; // wizard will prompt
+        if (!Uri.TryCreate(config.BaseUrl, UriKind.Absolute, out _))
+        {
+            Console.Error.WriteLine(
+                $"❌ Invalid base URL: '{config.BaseUrl}'\n" +
+                $"   Fix it in ~/.bse-code/config.json or via the BSE_BASE_URL environment variable.");
+            Environment.Exit(1);
         }
     }
 
