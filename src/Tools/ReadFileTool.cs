@@ -1,11 +1,11 @@
 /// <summary>Reads and returns the full contents of a file.</summary>
 public sealed class ReadFileTool : IToolHandler
 {
-    public string Name        => "read_file";
+    public string Name => "read_file";
     public string Description => "Read and return the contents of a file";
     public object ParameterSchema => new
     {
-        type     = "object",
+        type = "object",
         required = new[] { "file_path" },
         properties = new
         {

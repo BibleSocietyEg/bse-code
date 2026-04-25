@@ -8,17 +8,17 @@ using System.Text;
 public static class UI
 {
     // ── Theme-aware color accessors ───────────────────────────────────────────
-    public static ConsoleColor Accent      => ThemeManager.Current.Accent;
-    public static ConsoleColor Muted       => ThemeManager.Current.Muted;
-    public static ConsoleColor Prompt      => ThemeManager.Current.Prompt;
-    public static ConsoleColor Response    => ThemeManager.Current.Response;
-    public static ConsoleColor ToolColor   => ThemeManager.Current.Tool;
+    public static ConsoleColor Accent => ThemeManager.Current.Accent;
+    public static ConsoleColor Muted => ThemeManager.Current.Muted;
+    public static ConsoleColor Prompt => ThemeManager.Current.Prompt;
+    public static ConsoleColor Response => ThemeManager.Current.Response;
+    public static ConsoleColor ToolColor => ThemeManager.Current.Tool;
     public static ConsoleColor SuccessColor => ThemeManager.Current.Success;
-    public static ConsoleColor ErrColor    => ThemeManager.Current.Error;
-    public static ConsoleColor WarnColor   => ThemeManager.Current.Warning;
-    public static ConsoleColor SkillColor  => ThemeManager.Current.Skill;
-    public static ConsoleColor McpColor    => ThemeManager.Current.Mcp;
-    public static ConsoleColor GitColor    => ThemeManager.Current.Git;
+    public static ConsoleColor ErrColor => ThemeManager.Current.Error;
+    public static ConsoleColor WarnColor => ThemeManager.Current.Warning;
+    public static ConsoleColor SkillColor => ThemeManager.Current.Skill;
+    public static ConsoleColor McpColor => ThemeManager.Current.Mcp;
+    public static ConsoleColor GitColor => ThemeManager.Current.Git;
 
     // ── Print helpers ─────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ public static class UI
     {
         Console.ForegroundColor = color;
         if (newline) Console.WriteLine(text);
-        else         Console.Write(text);
+        else Console.Write(text);
         Console.ResetColor();
     }
 
