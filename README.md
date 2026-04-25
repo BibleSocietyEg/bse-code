@@ -6,6 +6,7 @@ Chat with your codebase, read and write files, run shell commands, connect MCP s
 
 [![NuGet](https://img.shields.io/nuget/v/bse-code?style=flat-square&logo=nuget&label=NuGet)](https://www.nuget.org/packages/bse-code)
 [![npm](https://img.shields.io/npm/v/bse-code?style=flat-square&logo=npm&label=npm)](https://www.npmjs.com/package/bse-code)
+[![CI](https://github.com/BibleSocietyEg/bse-code/actions/workflows/ci.yml/badge.svg)](https://github.com/BibleSocietyEg/bse-code/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
 ---

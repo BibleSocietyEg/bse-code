@@ -14,8 +14,11 @@ public static class InteractiveInput
 {
     // ── History ───────────────────────────────────────────────────────────────
 
-    private static readonly List<string> _history = [];
+    internal static readonly List<string> _history = [];
     private static int _historyIndex = -1;
+
+    /// <summary>Clears the history list. Used by tests to reset state between runs.</summary>
+    internal static void ClearHistory() => _history.Clear();
 
     // ── Slash command registry ────────────────────────────────────────────────
 
@@ -47,8 +50,8 @@ public static class InteractiveInput
     /// </summary>
     public static string? ReadLine()
     {
-        var buf     = new StringBuilder();
-        int cursor  = 0;          // logical cursor position in buf
+        var buf = new StringBuilder();
+        int cursor = 0;          // logical cursor position in buf
         _historyIndex = -1;
         string savedLine = "";    // preserves draft when browsing history
 
@@ -276,8 +279,8 @@ public static class InteractiveInput
         // Clear current line
         ClearCurrentLine();
 
-        var filter    = initial.Length > 1 ? initial[1..] : "";
-        var selected  = 0;
+        var filter = initial.Length > 1 ? initial[1..] : "";
+        var selected = 0;
 
         while (true)
         {
@@ -359,8 +362,8 @@ public static class InteractiveInput
 
     private static void TryCompletePath(StringBuilder buf, ref int cursor, string partial, string prefix)
     {
-        var dir      = Path.GetDirectoryName(partial) ?? ".";
-        var stem     = Path.GetFileName(partial);
+        var dir = Path.GetDirectoryName(partial) ?? ".";
+        var stem = Path.GetFileName(partial);
         if (string.IsNullOrEmpty(dir)) dir = ".";
 
         List<string> matches;
@@ -405,7 +408,7 @@ public static class InteractiveInput
     private static void TryCompleteSlash(StringBuilder buf, ref int cursor, string text)
     {
         var filter = text.Length > 1 ? text[1..] : "";
-        var items  = GetSlashItems(filter);
+        var items = GetSlashItems(filter);
         if (items.Count == 0) return;
 
         if (items.Count == 1)
@@ -434,7 +437,7 @@ public static class InteractiveInput
 
     // ── Generic picker (reusable) ─────────────────────────────────────────────
 
-    private record PickerItem(string Label, string Value);
+    internal record PickerItem(string Label, string Value);
 
     private static string? RunGenericPicker(List<PickerItem> items, string prefix)
     {
@@ -468,7 +471,7 @@ public static class InteractiveInput
     private static void RenderPicker(List<PickerItem> items, int selected, string filter, string prefix)
     {
         var maxVisible = Math.Min(items.Count, 10);
-        var startIdx   = Math.Max(0, Math.Min(selected - maxVisible / 2, items.Count - maxVisible));
+        var startIdx = Math.Max(0, Math.Min(selected - maxVisible / 2, items.Count - maxVisible));
 
         // Show filter hint on current line
         Console.ForegroundColor = UI.Prompt;
@@ -481,7 +484,7 @@ public static class InteractiveInput
 
         for (int i = startIdx; i < startIdx + maxVisible; i++)
         {
-            var item    = items[i];
+            var item = items[i];
             var isActive = i == selected;
 
             if (isActive)
@@ -520,8 +523,8 @@ public static class InteractiveInput
     private static void ClearPickerLines(int itemCount)
     {
         var visibleItems = Math.Min(itemCount, 10);
-        var extraLine    = itemCount > 10 ? 1 : 0;
-        var totalLines   = visibleItems + 1 + extraLine; // items + header + optional "… N more"
+        var extraLine = itemCount > 10 ? 1 : 0;
+        var totalLines = visibleItems + 1 + extraLine; // items + header + optional "… N more"
         for (int i = 0; i < totalLines; i++)
         {
             if (Console.CursorTop == 0) break;
@@ -533,13 +536,13 @@ public static class InteractiveInput
 
     // ── Slash items builder ───────────────────────────────────────────────────
 
-    private static List<PickerItem> GetSlashItems(string filter)
+    internal static List<PickerItem> GetSlashItems(string filter)
     {
         var all = BuiltinCommands
             .Select(c => new PickerItem($"{c.Command}  {c.Description}", c.Command))
             .Concat(SkillManager.All.Select(s =>
             {
-                var cmd  = $"/{s.Name}";
+                var cmd = $"/{s.Name}";
                 var desc = $"⚡ skill [{(s.IsUserLevel ? "user" : "project")}]";
                 return new PickerItem($"{cmd}  {desc}", cmd);
             }))

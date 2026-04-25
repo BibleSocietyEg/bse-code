@@ -96,4 +96,4 @@ jobs:
         run: dotnet restore
 
       - name: Check formatting
-        run: dotnet format --verify-no-changes --no-restore
+        run: dotnet format BSE_Code.sln --verify-no-changes --no-restore

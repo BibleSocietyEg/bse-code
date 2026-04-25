@@ -4,6 +4,13 @@
 
 set -e
 
+# Windows detection: if running on Windows without a POSIX shell, direct to PowerShell hook
+if [ "${OS:-}" = "Windows_NT" ]; then
+    echo "⚠️  Windows detected. If this script fails, run the PowerShell hook instead:"
+    echo "   pwsh .githooks/pre-commit.ps1"
+    echo "   See CONTRIBUTING.md for details."
+fi
+
 echo "🔍 Checking code formatting..."
 dotnet format --verify-no-changes --no-restore
 if [ $? -ne 0 ]; then
