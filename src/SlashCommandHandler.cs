@@ -133,15 +133,12 @@ public sealed class SlashCommandHandler
     {
         if (string.IsNullOrEmpty(arg))
         {
-            UI.Header("Available themes");
-            foreach (var t in ThemeManager.Names)
-            {
-                var marker = t == ThemeManager.Current.Name ? " ◀ active" : "";
-                UI.Print($"    {t}{marker}", t == ThemeManager.Current.Name ? UI.Accent : UI.Muted);
-            }
-            UI.Print("  Usage: /theme <name>", UI.Muted);
+            var picked = InteractiveInput.RunThemePicker();
+            if (picked is null) return;
+            arg = picked;
         }
-        else if (ThemeManager.TrySet(arg))
+
+        if (ThemeManager.TrySet(arg))
         {
             _config.Theme = arg;
             ConfigManager.SaveTheme(_config);

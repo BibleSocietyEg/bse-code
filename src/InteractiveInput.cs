@@ -248,6 +248,23 @@ public static class InteractiveInput
         }
     }
 
+    // ── Theme picker ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Shows an interactive picker for available themes.
+    /// Returns the selected theme name, or null if Escape was pressed.
+    /// </summary>
+    public static string? RunThemePicker()
+    {
+        ClearCurrentLine();
+        var items = ThemeManager.Names
+            .Select(n => new PickerItem(
+                n == ThemeManager.Current.Name ? $"{n}  ◀ active" : n,
+                n))
+            .ToList();
+        return RunGenericPicker(items, "🎨 ");
+    }
+
     // ── Slash command picker ──────────────────────────────────────────────────
 
     /// <summary>
@@ -307,9 +324,17 @@ public static class InteractiveInput
             if (k.Key == ConsoleKey.Backspace)
             {
                 if (filter.Length > 0)
+                {
                     filter = filter[..^1];
-                selected = 0;
-                ClearPickerLines(allItems.Count);
+                    selected = 0;
+                    ClearPickerLines(allItems.Count);
+                }
+                else
+                {
+                    // Empty filter + backspace → exit picker, discard '/'
+                    ClearPickerLines(allItems.Count);
+                    return null;
+                }
                 continue;
             }
 
