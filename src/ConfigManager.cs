@@ -40,9 +40,9 @@ public class AppConfig
     [JsonPropertyName("model")]
     public string Model { get; set; } = "z-ai/glm-4.5-air:free";
 
-    /// <summary>OpenAI-compatible API base URL.</summary>
+    /// <summary>OpenAI-compatible API base URL (set automatically by the setup wizard).</summary>
     [JsonPropertyName("base_url")]
-    public string BaseUrl { get; set; } = "https://openrouter.ai/api/v1";
+    public string BaseUrl { get; set; } = "";
 
     /// <summary>Active color theme name.</summary>
     [JsonPropertyName("theme")]

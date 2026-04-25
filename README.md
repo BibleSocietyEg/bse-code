@@ -71,7 +71,7 @@ Config location:
 ```sh
 bse-code --config
 # Select [1] OpenRouter
-# Get a free key at https://openrouter.ai/keys
+# Get a free key at: https://openrouter.ai/keys
 # Pick any free model (Gemini 2.5 Pro, Llama 4, DeepSeek R1…)
 ```
 
@@ -394,6 +394,8 @@ MCP tools are automatically available to the AI with the naming convention `mcp_
 }
 ```
 
+> The `base_url` is set automatically by the setup wizard for each provider. You only need to change it manually for custom endpoints.
+
 For local providers (Ollama, LM Studio, Local AI Foundry), `api_key` is not needed:
 ```json
 {
@@ -414,7 +416,7 @@ For local providers (Ollama, LM Studio, Local AI Foundry), `api_key` is not need
 | `BSE_MODEL` | Model ID to use |
 | `BSE_BASE_URL` | Override the API base URL |
 
-Legacy variables `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `OPENROUTER_BASE_URL` are still supported as fallbacks.
+> Legacy variables `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `OPENROUTER_BASE_URL` are still accepted as fallbacks for backwards compatibility.
 
 **PowerShell (persist):**
 ```powershell
