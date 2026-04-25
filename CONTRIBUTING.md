@@ -60,6 +60,29 @@ Or configure Git to use the hooks directory globally:
 git config core.hooksPath .githooks
 ```
 
+## Windows Contributors
+
+On Windows, the standard shell pre-commit hook (`.githooks/pre-commit`) requires a POSIX-compatible shell (e.g. Git Bash). If you're using PowerShell natively, a dedicated PowerShell hook is provided.
+
+**Install the hook** (works for both the shell and PowerShell hooks):
+
+```powershell
+git config core.hooksPath .githooks
+```
+
+**Run it manually at any time:**
+
+```powershell
+pwsh .githooks/pre-commit.ps1
+```
+
+**What it checks:**
+
+1. `dotnet format --verify-no-changes` — ensures all code is correctly formatted
+2. `dotnet test tests/BSE_Code.Tests.csproj -c Release` — runs the full test suite
+
+If either check fails, the script prints a remediation message and exits with a non-zero code.
+
 ## Branch strategy
 
 - `main` — stable, always releasable
