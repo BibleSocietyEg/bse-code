@@ -41,8 +41,8 @@ public class McpConfig
 public class McpTool
 {
     public string ServerName { get; init; } = "";
-    public string Name       { get; init; } = "";
-    public string FullName   => $"mcp__{ServerName}__{Name}";
+    public string Name { get; init; } = "";
+    public string FullName => $"mcp__{ServerName}__{Name}";
     public string Description { get; init; } = "";
     public JsonElement InputSchema { get; init; }
 }
@@ -59,7 +59,7 @@ public class McpTool
 /// </summary>
 public static class McpManager
 {
-    private static readonly string ConfigDir  = Path.Combine(
+    private static readonly string ConfigDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".bse-code");
     private static readonly string McpFile = Path.Combine(ConfigDir, "mcp.json");
 
@@ -77,16 +77,19 @@ public static class McpManager
     public static IReadOnlyDictionary<string, McpServerConfig> Servers => _activeServers;
 
     /// <summary>Loads MCP config and discovers tools from all enabled servers.</summary>
-    public static async Task LoadAsync()
+    public static Task LoadAsync() => LoadAsync(McpFile);
+
+    /// <summary>Loads MCP config from the specified path and discovers tools from all enabled servers.</summary>
+    internal static async Task LoadAsync(string mcpFilePath)
     {
         _tools.Clear();
         _activeServers.Clear();
 
-        if (!File.Exists(McpFile)) return;
+        if (!File.Exists(mcpFilePath)) return;
 
         try
         {
-            var json = await File.ReadAllTextAsync(McpFile);
+            var json = await File.ReadAllTextAsync(mcpFilePath);
             _config = JsonSerializer.Deserialize<McpConfig>(json, JsonOpts) ?? new McpConfig();
         }
         catch (Exception ex)
@@ -118,13 +121,13 @@ public static class McpManager
                 foreach (var tool in toolsArr.EnumerateArray())
                 {
                     var toolName = tool.GetProperty("name").GetString() ?? "";
-                    var desc     = tool.TryGetProperty("description", out var d) ? d.GetString() ?? "" : "";
-                    var schema   = tool.TryGetProperty("inputSchema", out var s) ? s : default;
+                    var desc = tool.TryGetProperty("description", out var d) ? d.GetString() ?? "" : "";
+                    var schema = tool.TryGetProperty("inputSchema", out var s) ? s : default;
 
                     _tools.Add(new McpTool
                     {
-                        ServerName  = serverName,
-                        Name        = toolName,
+                        ServerName = serverName,
+                        Name = toolName,
                         Description = desc,
                         InputSchema = schema,
                     });
@@ -149,12 +152,16 @@ public static class McpManager
         {
             var callParams = new
             {
-                name      = toolName,
+                name = toolName,
                 arguments = JsonSerializer.Deserialize<JsonElement>(argsJson)
             };
 
             var result = await SendMcpRequestAsync(serverName, server, "tools/call", callParams);
-            if (result is null) return "ERROR: No response from MCP server.";
+            if (result is null)
+            {
+                UI.Warn($"🔌 MCP '{serverName}/{toolName}': no response (timeout or empty).");
+                return "ERROR: No response from MCP server.";
+            }
 
             // Extract text content from result
             if (result.Value.TryGetProperty("content", out var content))
@@ -172,6 +179,7 @@ public static class McpManager
         }
         catch (Exception ex)
         {
+            UI.Warn($"🔌 MCP '{serverName}/{toolName}' failed: {ex.Message}");
             return $"ERROR: {ex.Message}";
         }
     }
@@ -184,12 +192,12 @@ public static class McpManager
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName               = server.Command,
-            RedirectStandardInput  = true,
+            FileName = server.Command,
+            RedirectStandardInput = true,
             RedirectStandardOutput = true,
-            RedirectStandardError  = true,
-            UseShellExecute        = false,
-            CreateNoWindow         = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
         };
 
         foreach (var arg in server.Args)
@@ -205,13 +213,13 @@ public static class McpManager
         var initRequest = new
         {
             jsonrpc = "2.0",
-            id      = 1,
-            method  = "initialize",
+            id = 1,
+            method = "initialize",
             @params = new
             {
                 protocolVersion = "2024-11-05",
-                capabilities    = new { },
-                clientInfo      = new { name = "bse-code", version = "1.3.0" }
+                capabilities = new { },
+                clientInfo = new { name = "bse-code", version = "1.3.0" }
             }
         };
 
@@ -231,7 +239,7 @@ public static class McpManager
         var request = new
         {
             jsonrpc = "2.0",
-            id      = 2,
+            id = 2,
             method,
             @params
         };
@@ -289,9 +297,9 @@ public static class McpManager
             }
 
             yield return ChatTool.CreateFunctionTool(
-                functionName:        tool.FullName,
+                functionName: tool.FullName,
                 functionDescription: $"[MCP:{tool.ServerName}] {tool.Description}",
-                functionParameters:  schema
+                functionParameters: schema
             );
         }
     }
@@ -308,8 +316,8 @@ public static class McpManager
             {
                 ["example-server"] = new McpServerConfig
                 {
-                    Command  = "npx",
-                    Args     = ["-y", "@example/mcp-server@latest"],
+                    Command = "npx",
+                    Args = ["-y", "@example/mcp-server@latest"],
                     Disabled = true,
                 }
             }
