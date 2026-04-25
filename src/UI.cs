@@ -74,13 +74,21 @@ public sealed class Spinner : IDisposable
     private static readonly string[] Frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
     private readonly string _label;
-    private readonly Thread _thread;
-    private volatile bool _running = true;
+    private Thread? _thread;
+    private volatile bool _running;
     private bool _stopped;
 
     public Spinner(string label = "Working")
     {
         _label = label;
+        Start();
+    }
+
+    public void Start()
+    {
+        if (_running) return;
+        _stopped = false;
+        _running = true;
         Console.CursorVisible = false;
 
         _thread = new Thread(() =>
@@ -107,7 +115,7 @@ public sealed class Spinner : IDisposable
         if (_stopped) return;
         _stopped = true;
         _running = false;
-        _thread.Join(500);
+        _thread?.Join(500);
     }
 
     public void Dispose() => Stop();

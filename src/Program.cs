@@ -252,44 +252,64 @@ async Task RunTurnAsync(
         var contentBuilder         = new StringBuilder();
         var accumulators           = new Dictionary<int, ToolCallAccumulator>();
 
-        try
+        const int maxRetries = 5;
+        int retryCount = 0;
+        while (true)
         {
-            var stream = chatClient.CompleteChatStreamingAsync(messages, opts);
-            spinner.Stop();
-            Console.WriteLine();
-
-            await foreach (var update in stream)
+            contentBuilder.Clear();
+            accumulators.Clear();
+            try
             {
-                foreach (var part in update.ContentUpdate)
-                {
-                    if (!string.IsNullOrEmpty(part.Text))
-                    {
-                        Console.ForegroundColor = UI.Response;
-                        Console.Write(part.Text);
-                        Console.ResetColor();
-                        contentBuilder.Append(part.Text);
-                        captureOutput?.Append(part.Text);
-                    }
-                }
+                var stream = chatClient.CompleteChatStreamingAsync(messages, opts);
+                spinner.Stop();
+                Console.WriteLine();
 
-                foreach (var delta in update.ToolCallUpdates)
+                await foreach (var update in stream)
                 {
-                    if (!accumulators.TryGetValue(delta.Index, out var acc))
+                    foreach (var part in update.ContentUpdate)
                     {
-                        acc = new ToolCallAccumulator(delta.ToolCallId ?? "", delta.FunctionName ?? "")
-                            { Index = delta.Index };
-                        accumulators[delta.Index] = acc;
+                        if (!string.IsNullOrEmpty(part.Text))
+                        {
+                            Console.ForegroundColor = UI.Response;
+                            Console.Write(part.Text);
+                            Console.ResetColor();
+                            contentBuilder.Append(part.Text);
+                            captureOutput?.Append(part.Text);
+                        }
                     }
-                    if (!string.IsNullOrEmpty(delta.FunctionName)) acc.Name = delta.FunctionName;
-                    if (!string.IsNullOrEmpty(delta.ToolCallId))   acc.Id   = delta.ToolCallId;
-                    acc.AppendArguments(delta.FunctionArgumentsUpdate);
+
+                    foreach (var delta in update.ToolCallUpdates)
+                    {
+                        if (!accumulators.TryGetValue(delta.Index, out var acc))
+                        {
+                            acc = new ToolCallAccumulator(delta.ToolCallId ?? "", delta.FunctionName ?? "")
+                                { Index = delta.Index };
+                            accumulators[delta.Index] = acc;
+                        }
+                        if (!string.IsNullOrEmpty(delta.FunctionName)) acc.Name = delta.FunctionName;
+                        if (!string.IsNullOrEmpty(delta.ToolCallId))   acc.Id   = delta.ToolCallId;
+                        acc.AppendArguments(delta.FunctionArgumentsUpdate);
+                    }
                 }
+                break; // success — exit retry loop
             }
-        }
-        catch
-        {
-            spinner.Stop();
-            throw;
+            catch (ClientResultException ex) when (ex.Status == 429 && retryCount < maxRetries)
+            {
+                spinner.Stop();
+                retryCount++;
+                // Honour Retry-After header if present, otherwise exponential backoff
+                int delaySeconds = (int)Math.Pow(2, retryCount);
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"\n  ⚠ Rate limited (429). Retrying in {delaySeconds}s... (attempt {retryCount}/{maxRetries})");
+                Console.ResetColor();
+                await Task.Delay(TimeSpan.FromSeconds(delaySeconds));
+                spinner.Start();
+            }
+            catch
+            {
+                spinner.Stop();
+                throw;
+            }
         }
 
         if (contentBuilder.Length > 0) Console.WriteLine();
