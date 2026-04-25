@@ -111,7 +111,7 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Pack
-        run: dotnet pack BSE_Code.csproj -c Release --no-build -o ./nupkg
+        run: dotnet pack BSE_Code.csproj -c Release -o ./nupkg
 
       - name: Publish to NuGet
         run: dotnet nuget push ./nupkg/*.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
