@@ -21,34 +21,25 @@ An AI coding assistant CLI that works with **any LLM provider** — OpenRouter, 
 
 ## Install
 
-### via npm (recommended)
+### via .NET tool (NuGet)
+
+Requires [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+
+```sh
+dotnet tool install --global BSE_Code
+```
+
+Update to the latest version:
+```sh
+dotnet tool update --global BSE_Code
+```
+
+### via npm
 
 Requires [Node.js 18+](https://nodejs.org). No .NET SDK needed.
 
 ```sh
 npm install -g bse-code
-```
-
-### via .NET tool
-
-Requires [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
-
-```sh
-dotnet tool install --global --add-source ./nupkg BSE_Code
-```
-
-**To build and install from source:**
-
-```sh
-git clone <repo-url>
-cd <repo-folder>
-dotnet pack BSE_Code.csproj -c Release -o ./nupkg
-dotnet tool install --global --add-source ./nupkg BSE_Code
-```
-
-**To update** after a code change — bump `<Version>` in the csproj, repack, then:
-```sh
-dotnet tool update --global --add-source ./nupkg BSE_Code
 ```
 
 ---
