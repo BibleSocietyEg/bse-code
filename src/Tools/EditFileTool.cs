@@ -1,7 +1,5 @@
 using System.Text.RegularExpressions;
 
-namespace BSE_Code.Tools;
-
 /// <summary>
 /// Edits a file by replacing a contiguous block of text with a new block.
 /// This "SEARCH/REPLACE" pattern is much more efficient than overwriting
@@ -40,36 +38,39 @@ public sealed class EditFileTool : IToolHandler
         {
             var content = await File.ReadAllTextAsync(path);
 
-            // Simple exact match replacement first
-            if (content.Contains(oldStr))
+            // Count exact occurrences to detect ambiguity before replacing
+            int exactCount = CountOccurrences(content, oldStr);
+
+            if (exactCount > 1)
+                return $"Error: 'old_str' matches {exactCount} locations in '{path}'. Provide more context to make it unique.";
+
+            if (exactCount == 1)
             {
-                var newContent = content.Replace(oldStr, newStr);
+                // Replace only the first (and only) occurrence
+                int idx = content.IndexOf(oldStr, StringComparison.Ordinal);
+                var newContent = string.Concat(content.AsSpan(0, idx), newStr, content.AsSpan(idx + oldStr.Length));
                 await File.WriteAllTextAsync(path, newContent);
                 return $"Successfully edited '{path}'";
             }
 
-            // If exact match fails, try normalization (whitespace/newlines)
-            var normalizedContent = Normalize(content);
-            var normalizedOldStr = Normalize(oldStr);
+            // Exact match failed — try whitespace-normalised fallback
+            var regexPattern = Regex.Escape(oldStr);
+            regexPattern = Regex.Replace(regexPattern, @"\s+", @"\s+");
+            var regex = new Regex(regexPattern, RegexOptions.None);
+            var matches = regex.Matches(content);
 
-            if (normalizedContent.Contains(normalizedOldStr))
+            if (matches.Count > 1)
+                return $"Error: 'old_str' (whitespace-normalised) matches {matches.Count} locations in '{path}'. Provide more context to make it unique.";
+
+            if (matches.Count == 1)
             {
-                // This is trickier because we need to replace in the original content
-                // to preserve original formatting elsewhere.
-                // We'll use a regex that ignores whitespace differences.
-                var regexPattern = Regex.Escape(oldStr);
-                regexPattern = Regex.Replace(regexPattern, @"\s+", @"\s+");
-                var regex = new Regex(regexPattern);
-
-                if (regex.IsMatch(content))
-                {
-                    var newContent = regex.Replace(content, newStr, 1); // Only replace first occurrence
-                    await File.WriteAllTextAsync(path, newContent);
-                    return $"Successfully edited '{path}' (matched with whitespace normalization)";
-                }
+                var m = matches[0];
+                var newContent = string.Concat(content.AsSpan(0, m.Index), newStr, content.AsSpan(m.Index + m.Length));
+                await File.WriteAllTextAsync(path, newContent);
+                return $"Successfully edited '{path}' (matched with whitespace normalization)";
             }
 
-            return $"Error: Could not find the exact 'old_str' in '{path}'. Make sure you provide a unique and exact contiguous block of code.";
+            return $"Error: Could not find 'old_str' in '{path}'. Make sure you provide a unique, exact contiguous block of code.";
         }
         catch (Exception ex)
         {
@@ -77,6 +78,15 @@ public sealed class EditFileTool : IToolHandler
         }
     }
 
-    private static string Normalize(string input) =>
-        Regex.Replace(input, @"\s+", " ").Trim();
+    private static int CountOccurrences(string source, string value)
+    {
+        int count = 0, idx = 0;
+        while ((idx = source.IndexOf(value, idx, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            idx += value.Length;
+        }
+        return count;
+    }
+
 }

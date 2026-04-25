@@ -331,26 +331,10 @@ public static class McpManager
     /// Sends a JSON-RPC 2.0 request to an MCP server via stdio.
     /// </summary>
     [Obsolete("Use McpSession.SendRequestAsync instead")]
-    private static async Task<JsonElement?> SendMcpRequestAsync(
+    private static Task<JsonElement?> SendMcpRequestAsync(
         string serverName, McpServerConfig server, string method, object? @params)
     {
-        return null;
-    }
-
-        // Read response
-        var responseLine = await ReadLineWithTimeoutAsync(process.StandardOutput, 10000);
-        process.Kill();
-
-        if (responseLine is null) return null;
-
-        var doc = JsonDocument.Parse(responseLine);
-        if (doc.RootElement.TryGetProperty("result", out var result))
-            return result;
-
-        if (doc.RootElement.TryGetProperty("error", out var error))
-            throw new Exception(error.GetRawText());
-
-        return null;
+        return Task.FromResult<JsonElement?>(null);
     }
 
     private static async Task<string?> ReadLineWithTimeoutAsync(
