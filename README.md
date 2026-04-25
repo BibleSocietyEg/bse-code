@@ -4,7 +4,7 @@
 
 Chat with your codebase, read and write files, run shell commands, connect MCP servers, build reusable skills, persist project memory, and pick up right where you left off — all from a gorgeous interactive REPL.
 
-[![NuGet](https://img.shields.io/nuget/v/BSE_Code?style=flat-square&logo=nuget&label=NuGet)](https://www.nuget.org/packages/BSE_Code)
+[![NuGet](https://img.shields.io/nuget/v/bse-code?style=flat-square&logo=nuget&label=NuGet)](https://www.nuget.org/packages/bse-code)
 [![npm](https://img.shields.io/npm/v/bse-code?style=flat-square&logo=npm&label=npm)](https://www.npmjs.com/package/bse-code)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
@@ -32,12 +32,12 @@ Chat with your codebase, read and write files, run shell commands, connect MCP s
 Requires [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
 
 ```sh
-dotnet tool install --global BSE_Code
+dotnet tool install --global bse-code
 ```
 
 Update to the latest version:
 ```sh
-dotnet tool update --global BSE_Code
+dotnet tool update --global bse-code
 ```
 
 ### via npm

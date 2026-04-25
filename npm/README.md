@@ -5,7 +5,7 @@
 Chat with your codebase, read and write files, run shell commands, connect MCP servers, build reusable skills, persist project memory, and pick up right where you left off — all from a gorgeous interactive REPL.
 
 [![npm](https://img.shields.io/npm/v/bse-code?style=flat-square&logo=npm&label=npm)](https://www.npmjs.com/package/bse-code)
-[![NuGet](https://img.shields.io/nuget/v/BSE_Code?style=flat-square&logo=nuget&label=NuGet)](https://www.nuget.org/packages/BSE_Code)
+[![NuGet](https://img.shields.io/nuget/v/bse-code?style=flat-square&logo=nuget&label=NuGet)](https://www.nuget.org/packages/bse-code)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://github.com/BSE-Code/bse-code/blob/main/LICENSE)
 
 ---
@@ -33,7 +33,7 @@ Requires [Node.js 18+](https://nodejs.org). No .NET SDK needed — the binary is
 npm install -g bse-code
 ```
 
-> Also available as a .NET global tool: `dotnet tool install --global BSE_Code`
+> Also available as a .NET global tool: `dotnet tool install --global bse-code`
 
 ---
 

@@ -32,9 +32,9 @@ jobs:
             asset: bse-code-osx-arm64
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "10.0.x"
 
@@ -57,7 +57,7 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: mv ./publish/${{ matrix.rid }}/bse-code ./publish/${{ matrix.rid }}/${{ matrix.asset }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.asset }}
           path: ./publish/${{ matrix.rid }}/${{ matrix.asset }}
@@ -69,9 +69,9 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: ./artifacts
           merge-multiple: true
@@ -86,12 +86,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
+
+      - name: Set version from tag
+        run: npm version ${{ github.ref_name }} --no-git-tag-version
+        working-directory: ./npm
 
       - name: Publish to npm
         run: npm publish
@@ -104,14 +108,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "10.0.x"
 
       - name: Pack
-        run: dotnet pack BSE_Code.csproj -c Release -o ./nupkg
+        run: |
+          VERSION="${{ github.ref_name }}"
+          dotnet pack BSE_Code.csproj -c Release -o ./nupkg -p:Version="${VERSION#v}"
 
       - name: Publish to NuGet
         run: dotnet nuget push ./nupkg/*.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
