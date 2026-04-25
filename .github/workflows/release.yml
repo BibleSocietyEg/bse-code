@@ -89,7 +89,7 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: ./publish/${{ matrix.rid }}/${{ matrix.asset }} --version
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.asset }}
           path: ./publish/${{ matrix.rid }}/${{ matrix.asset }}
