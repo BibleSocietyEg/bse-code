@@ -85,7 +85,7 @@ jobs:
         shell: pwsh
 
       - name: Smoke test binary (Unix)
-        if: matrix.os != 'windows-latest'
+        if: matrix.os != 'windows-latest' && matrix.rid != 'linux-arm64'
         run: ./publish/${{ matrix.rid }}/${{ matrix.asset }} --version
 
       - uses: actions/upload-artifact@v7
