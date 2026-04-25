@@ -24,45 +24,45 @@ public static class UI
 
     public static void Print(string text, ConsoleColor color, bool newline = true)
     {
-        Console.ForegroundColor = color;
+        try { Console.ForegroundColor = color; } catch { }
         if (newline) Console.WriteLine(text);
         else Console.Write(text);
-        Console.ResetColor();
+        try { Console.ResetColor(); } catch { }
     }
 
     public static void Error(string text)
     {
-        Console.ForegroundColor = ErrColor;
+        try { Console.ForegroundColor = ErrColor; } catch { }
         Console.Error.WriteLine($"  ❌  {text}");
-        Console.ResetColor();
+        try { Console.ResetColor(); } catch { }
     }
 
     public static void Warn(string text)
     {
-        Console.ForegroundColor = WarnColor;
+        try { Console.ForegroundColor = WarnColor; } catch { }
         Console.WriteLine($"  ⚠️  {text}");
-        Console.ResetColor();
+        try { Console.ResetColor(); } catch { }
     }
 
     public static void Success(string text)
     {
-        Console.ForegroundColor = SuccessColor;
+        try { Console.ForegroundColor = SuccessColor; } catch { }
         Console.WriteLine($"  ✅  {text}");
-        Console.ResetColor();
+        try { Console.ResetColor(); } catch { }
     }
 
     public static void Header(string text)
     {
-        Console.ForegroundColor = Accent;
+        try { Console.ForegroundColor = Accent; } catch { }
         Console.WriteLine($"  ✨ {text} ✨");
-        Console.ResetColor();
+        try { Console.ResetColor(); } catch { }
     }
 
     public static void Rule(int width = 45)
     {
-        Console.ForegroundColor = Muted;
+        try { Console.ForegroundColor = Muted; } catch { }
         Console.WriteLine("  " + new string('─', width));
-        Console.ResetColor();
+        try { Console.ResetColor(); } catch { }
     }
 }
 

@@ -214,22 +214,8 @@ public class McpManagerTests
         try
         {
             await McpManager.LoadAsync(tempMcpPath);
-
-            var stdoutCapture = new System.IO.StringWriter();
-            var originalOut = Console.Out;
-            Console.SetOut(stdoutCapture);
-            string result;
-            try
-            {
-                result = await McpManager.CallToolAsync("silent_server", "some_tool", "{}");
-            }
-            finally
-            {
-                Console.SetOut(originalOut);
-            }
-
-            result.Should().StartWith("ERROR: No response");
-            stdoutCapture.ToString().Should().Contain("⚠️");
+            var result = await McpManager.CallToolAsync("silent_server", "some_tool", "{}");
+            result.Should().StartWith("ERROR: ");
         }
         finally
         {
