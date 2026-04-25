@@ -1,0 +1,24 @@
+#!/bin/sh
+# Pre-commit hook: verify code formatting and run tests.
+# Install: git config core.hooksPath .githooks
+
+set -e
+
+echo "🔍 Checking code formatting..."
+dotnet format --verify-no-changes --no-restore
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ Formatting issues found. Run 'dotnet format' to fix them."
+  exit 1
+fi
+
+echo "✅ Formatting OK"
+echo "🧪 Running tests..."
+dotnet test tests/BSE_Code.Tests.csproj --no-restore -c Release --verbosity quiet
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ Tests failed. Fix them before committing."
+  exit 1
+fi
+
+echo "✅ All checks passed"

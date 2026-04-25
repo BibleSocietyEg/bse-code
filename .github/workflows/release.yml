@@ -25,10 +25,10 @@ jobs:
         run: dotnet restore
 
       - name: Build
-        run: dotnet build --no-restore -c Release
+        run: dotnet build BSE_Code.csproj --no-restore -c Release
 
       - name: Test
-        run: dotnet test tests/BSE_Code.Tests.csproj --no-build -c Release
+        run: dotnet test tests/BSE_Code.Tests.csproj --no-restore -c Release
 
   build:
     name: Build ${{ matrix.rid }}
@@ -79,6 +79,16 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: mv ./publish/${{ matrix.rid }}/bse-code ./publish/${{ matrix.rid }}/${{ matrix.asset }}
 
+      # Smoke test — verify the binary actually runs before we ship it
+      - name: Smoke test binary (Windows)
+        if: matrix.os == 'windows-latest'
+        run: ./publish/${{ matrix.rid }}/${{ matrix.asset }} --version
+        shell: pwsh
+
+      - name: Smoke test binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: ./publish/${{ matrix.rid }}/${{ matrix.asset }} --version
+
       - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.asset }}
@@ -92,16 +102,27 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # needed for git-cliff changelog
 
       - uses: actions/download-artifact@v7
         with:
           path: ./artifacts
           merge-multiple: true
 
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@v4
+        id: changelog
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        continue-on-error: true  # don't fail if cliff.toml is missing
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: ./artifacts/*
+          body: ${{ steps.changelog.outputs.content }}
 
   npm-publish:
     needs: release

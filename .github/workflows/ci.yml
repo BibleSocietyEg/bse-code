@@ -13,7 +13,7 @@ env:
 
 jobs:
   test:
-    name: Build & Test
+    name: Build & Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -31,17 +31,55 @@ jobs:
         run: dotnet restore
 
       - name: Build
-        run: dotnet build --no-restore -c Release
+        run: dotnet build BSE_Code.csproj --no-restore -c Release
 
-      - name: Test
-        run: dotnet test tests/BSE_Code.Tests.csproj --no-build -c Release --logger "trx;LogFileName=results.trx" --results-directory ./test-results
+      - name: Test with coverage
+        run: >
+          dotnet test tests/BSE_Code.Tests.csproj
+          --no-restore -c Release
+          --collect:"XPlat Code Coverage"
+          --results-directory ./coverage
+          --logger "trx;LogFileName=results-${{ matrix.os }}.trx"
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: test-results-${{ matrix.os }}
-          path: ./test-results/*.trx
+          path: ./coverage/*.trx
+
+      - name: Upload coverage report
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-report
+          path: ./coverage/**/coverage.cobertura.xml
+
+  coverage:
+    name: Coverage Summary
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: coverage-report
+          path: ./coverage
+
+      - name: Generate coverage summary
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: coverage/**/coverage.cobertura.xml
+          badge: true
+          format: markdown
+          output: both
+          thresholds: "60 80"
+
+      - name: Add coverage to job summary
+        run: cat code-coverage-results.md >> $GITHUB_STEP_SUMMARY
 
   lint:
     name: Format Check
