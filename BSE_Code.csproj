@@ -4,12 +4,12 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>bse-code</AssemblyName>
-    <RootNamespace>BSE_Code</RootNamespace>
+    <RootNamespace>bse-code</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>bse-code</ToolCommandName>
-    <PackageId>BSE_Code</PackageId>
+    <PackageId>bse-code</PackageId>
     <Version>1.6.0</Version>
     <Description>AI coding assistant CLI — supports OpenRouter, OpenAI, Anthropic, Google AI, Ollama, LM Studio, Local AI Foundry, and any OpenAI-compatible endpoint</Description>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
