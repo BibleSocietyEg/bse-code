@@ -108,20 +108,25 @@ public static class McpManager
                 await Process.StandardInput.WriteLineAsync(json);
                 await Process.StandardInput.FlushAsync();
 
-                var responseLine = await ReadLineWithTimeoutAsync(Process.StandardOutput, timeoutMs);
-                if (responseLine is null) return null;
-
-                var doc = JsonDocument.Parse(responseLine);
-                if (doc.RootElement.TryGetProperty("id", out var resId) && resId.GetInt32() == id)
+                var deadline = Environment.TickCount64 + timeoutMs;
+                while (true)
                 {
-                    if (doc.RootElement.TryGetProperty("result", out var result))
-                        return result;
+                    var remaining = (int)(deadline - Environment.TickCount64);
+                    if (remaining <= 0) return null;
 
+                    var responseLine = await ReadLineWithTimeoutAsync(Process.StandardOutput, remaining);
+                    if (responseLine is null) return null;
+
+                    using var doc = JsonDocument.Parse(responseLine);
+                    if (!doc.RootElement.TryGetProperty("id", out var resId)) continue; // notification
+                    if (resId.ValueKind != JsonValueKind.Number || resId.GetInt32() != id) continue;
+
+                    if (doc.RootElement.TryGetProperty("result", out var result))
+                        return result.Clone();
                     if (doc.RootElement.TryGetProperty("error", out var error))
                         throw new Exception(error.GetRawText());
+                    return null;
                 }
-
-                return null;
             }
             finally
             {
