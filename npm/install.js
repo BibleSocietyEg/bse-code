@@ -31,7 +31,7 @@ function download(url, dest) {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(dest);
     const get = (u) => {
-      https.get(u, (res) => {
+      https.get(u, { headers: { "User-Agent": "bse-code-installer" } }, (res) => {
         if (res.statusCode === 301 || res.statusCode === 302) {
           return get(res.headers.location);
         }
