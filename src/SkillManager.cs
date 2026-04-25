@@ -11,8 +11,9 @@ public static class SkillManager
     private static readonly string UserSkillsDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".bse-code", "skills");
 
-    private static readonly string ProjectSkillsDir = Path.Combine(
-        Directory.GetCurrentDirectory(), ".bse-code", "skills");
+    // Computed per-call so it reflects the current working directory, not the startup CWD.
+    private static string ProjectSkillsDir =>
+        Path.Combine(Directory.GetCurrentDirectory(), ".bse-code", "skills");
 
     public record Skill(string Name, string Content, string FilePath, bool IsUserLevel);
 
