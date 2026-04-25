@@ -56,11 +56,11 @@ public static class SessionManager
     {
         get
         {
-            var cwd   = Directory.GetCurrentDirectory();
+            var cwd = Directory.GetCurrentDirectory();
             // Use SHA-256 for a stable, collision-resistant, cross-run hash.
             // GetHashCode() is non-deterministic across .NET versions and processes.
             var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(cwd));
-            var hash  = Convert.ToHexString(bytes)[..16].ToLowerInvariant();
+            var hash = Convert.ToHexString(bytes)[..16].ToLowerInvariant();
             return Path.Combine(BaseDir, hash);
         }
     }
@@ -72,15 +72,20 @@ public static class SessionManager
 
         var saved = new SavedSession
         {
-            Tag     = tag,
-            Model   = model,
+            Tag = tag,
+            Model = model,
             SavedAt = DateTime.UtcNow,
-            Cwd     = Directory.GetCurrentDirectory(),
+            Cwd = Directory.GetCurrentDirectory(),
             Messages = messages
-                .Where(m => m is UserChatMessage or AssistantChatMessage)
+                .Where(m => m switch
+                {
+                    UserChatMessage => true,
+                    AssistantChatMessage a when a.ToolCalls.Count == 0 => true,
+                    _ => false
+                })
                 .Select(m => new SavedMessage
                 {
-                    Role    = m is UserChatMessage ? "user" : "assistant",
+                    Role = m is UserChatMessage ? "user" : "assistant",
                     Content = ExtractText(m)
                 })
                 .Where(m => !string.IsNullOrWhiteSpace(m.Content))
@@ -101,7 +106,7 @@ public static class SessionManager
         {
             try
             {
-                var json    = File.ReadAllText(file);
+                var json = File.ReadAllText(file);
                 var session = JsonSerializer.Deserialize<SavedSession>(json, JsonOpts);
                 if (session is not null) sessions.Add(session);
             }
@@ -120,7 +125,7 @@ public static class SessionManager
 
         try
         {
-            var json    = File.ReadAllText(path);
+            var json = File.ReadAllText(path);
             var session = JsonSerializer.Deserialize<SavedSession>(json, JsonOpts);
             if (session is null) return null;
 
