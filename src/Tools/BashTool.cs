@@ -6,11 +6,11 @@ public sealed class BashTool : IToolHandler
     /// <summary>Default timeout for shell commands (30 seconds).</summary>
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 
-    public string Name        => "Bash";
+    public string Name => "Bash";
     public string Description => "Execute a shell command";
     public object ParameterSchema => new
     {
-        type     = "object",
+        type = "object",
         required = new[] { "command" },
         properties = new
         {
@@ -22,6 +22,7 @@ public sealed class BashTool : IToolHandler
     public Task<string> ExecuteAsync(string argsJson)
     {
         var args = ArgumentParser.ParseStringMap(argsJson);
+        // WARNING: 'command' is passed directly to the platform shell without sanitization.
         if (!args.TryGetValue("command", out var command) || string.IsNullOrWhiteSpace(command))
             throw new ArgumentException("'command' is required.");
 
@@ -33,10 +34,16 @@ public sealed class BashTool : IToolHandler
     }
 
     /// <summary>
-    /// Runs <paramref name="command"/> in the platform-appropriate shell.
-    /// Exposed internally so the REPL can reuse it for the <c>!</c> passthrough prefix.
-    /// Kills the process and returns an error message if <paramref name="timeout"/> elapses.
+    /// Runs <paramref name="command"/> in the platform-appropriate shell
+    /// (cmd.exe on Windows, /bin/bash on Unix).
     /// </summary>
+    /// <remarks>
+    /// <b>SECURITY WARNING:</b> This method executes arbitrary shell commands
+    /// supplied by the LLM without any input sanitization or sandboxing.
+    /// Callers are responsible for ensuring the command originates from a
+    /// trusted source (i.e., the user has reviewed and approved it).
+    /// Do not call this method with untrusted or unvalidated input.
+    /// </remarks>
     internal static string RunShell(string command, TimeSpan? timeout = null)
     {
         var effectiveTimeout = timeout ?? DefaultTimeout;
@@ -44,14 +51,14 @@ public sealed class BashTool : IToolHandler
         var startInfo = new ProcessStartInfo
         {
             RedirectStandardOutput = true,
-            RedirectStandardError  = true,
-            UseShellExecute        = false,
-            CreateNoWindow         = true
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
         };
 
         if (OperatingSystem.IsWindows())
         {
-            startInfo.FileName  = "cmd.exe";
+            startInfo.FileName = "cmd.exe";
             startInfo.Arguments = "/c " + command;
         }
         else
