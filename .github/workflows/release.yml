@@ -15,7 +15,7 @@ jobs:
     name: Test before release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-dotnet@v5
         with:
@@ -54,7 +54,7 @@ jobs:
             asset: bse-code-osx-arm64
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-dotnet@v5
         with:
@@ -79,7 +79,6 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: mv ./publish/${{ matrix.rid }}/bse-code ./publish/${{ matrix.rid }}/${{ matrix.asset }}
 
-      # Smoke test — verify the binary actually runs before we ship it
       - name: Smoke test binary (Windows)
         if: matrix.os == 'windows-latest'
         run: ./publish/${{ matrix.rid }}/${{ matrix.asset }} --version
@@ -89,7 +88,7 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: ./publish/${{ matrix.rid }}/${{ matrix.asset }} --version
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.asset }}
           path: ./publish/${{ matrix.rid }}/${{ matrix.asset }}
@@ -101,11 +100,11 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
         with:
-          fetch-depth: 0  # needed for git-cliff changelog
+          fetch-depth: 0
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v7
         with:
           path: ./artifacts
           merge-multiple: true
@@ -116,7 +115,7 @@ jobs:
         with:
           config: cliff.toml
           args: --latest --strip header
-        continue-on-error: true  # don't fail if cliff.toml is missing
+        continue-on-error: true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -129,9 +128,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v5
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
@@ -151,7 +150,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-dotnet@v5
         with:
