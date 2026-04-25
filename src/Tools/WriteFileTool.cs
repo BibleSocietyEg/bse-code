@@ -1,16 +1,16 @@
 /// <summary>Writes (or overwrites) a file with the given content.</summary>
 public sealed class WriteFileTool : IToolHandler
 {
-    public string Name        => "Write";
+    public string Name => "Write";
     public string Description => "Write content to a file";
     public object ParameterSchema => new
     {
-        type     = "object",
+        type = "object",
         required = new[] { "file_path", "content" },
         properties = new
         {
             file_path = new { type = "string", description = "The path of the file to write to" },
-            content   = new { type = "string", description = "The content to write to the file" }
+            content = new { type = "string", description = "The content to write to the file" }
         }
     };
 

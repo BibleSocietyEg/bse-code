@@ -1,5 +1,5 @@
-using OpenAI.Chat;
 using System.Text.Json;
+using OpenAI.Chat;
 
 /// <summary>
 /// Central registry of all available tool handlers.
@@ -24,9 +24,9 @@ public sealed class ToolRegistry
         foreach (var handler in _handlers.Values)
         {
             yield return ChatTool.CreateFunctionTool(
-                functionName:        handler.Name,
+                functionName: handler.Name,
                 functionDescription: handler.Description,
-                functionParameters:  BinaryData.FromObjectAsJson(handler.ParameterSchema)
+                functionParameters: BinaryData.FromObjectAsJson(handler.ParameterSchema)
             );
         }
     }

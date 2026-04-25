@@ -9,16 +9,16 @@ internal sealed class ToolCallAccumulator
 {
     private readonly StringBuilder _arguments = new();
 
-    public string Id    { get; set; }
-    public string Name  { get; set; }
-    public int    Index { get; set; }
+    public string Id { get; set; }
+    public string Name { get; set; }
+    public int Index { get; set; }
 
     /// <summary>The accumulated JSON argument string.</summary>
     public string Arguments => _arguments.ToString();
 
     public ToolCallAccumulator(string id, string name)
     {
-        Id   = id;
+        Id = id;
         Name = name;
     }
 

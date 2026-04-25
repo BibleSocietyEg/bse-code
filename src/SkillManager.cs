@@ -32,7 +32,7 @@ public static class SkillManager
         if (!Directory.Exists(dir)) return;
         foreach (var file in Directory.GetFiles(dir, "*.md", SearchOption.TopDirectoryOnly))
         {
-            var name    = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
+            var name = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
             var content = File.ReadAllText(file);
             _skills.Add(new Skill(name, content, file, isUser));
         }

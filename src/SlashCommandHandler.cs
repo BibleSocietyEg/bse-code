@@ -1,5 +1,5 @@
-using OpenAI.Chat;
 using System.Text;
+using OpenAI.Chat;
 
 /// <summary>
 /// Handles all <c>/command</c> inputs entered in the REPL.
@@ -25,12 +25,12 @@ public sealed class SlashCommandHandler
         Func<string> buildSystemPrompt,
         Func<ChatClient, ChatCompletionOptions, List<ChatMessage>, string, Task> runTurn)
     {
-        _config           = config;
-        _toolRegistry     = toolRegistry;
-        Client            = initialClient;
-        _buildClient      = buildClient;
+        _config = config;
+        _toolRegistry = toolRegistry;
+        Client = initialClient;
+        _buildClient = buildClient;
         _buildSystemPrompt = buildSystemPrompt;
-        _runTurn          = runTurn;
+        _runTurn = runTurn;
     }
 
     /// <summary>
@@ -43,8 +43,8 @@ public sealed class SlashCommandHandler
         ChatCompletionOptions opts)
     {
         var parts = cmd.Split(' ', 2, StringSplitOptions.TrimEntries);
-        var verb  = parts[0].ToLowerInvariant();
-        var arg   = parts.Length > 1 ? parts[1] : "";
+        var verb = parts[0].ToLowerInvariant();
+        var arg = parts.Length > 1 ? parts[1] : "";
 
         switch (verb)
         {
@@ -219,7 +219,7 @@ public sealed class SlashCommandHandler
                     await McpManager.LoadAsync();
                     opts.Tools.Clear();
                     foreach (var t in _toolRegistry.ToChatTools()) opts.Tools.Add(t);
-                    foreach (var t in McpManager.ToChatTools())    opts.Tools.Add(t);
+                    foreach (var t in McpManager.ToChatTools()) opts.Tools.Add(t);
                 }
                 UI.Success($"🔌 MCP reloaded — {McpManager.Tools.Count} tools ready to go!");
                 break;
@@ -425,7 +425,7 @@ public sealed class SlashCommandHandler
         string verb, string arg, List<ChatMessage> messages, ChatCompletionOptions opts)
     {
         var skillName = verb.TrimStart('/');
-        var skill     = SkillManager.Find(skillName);
+        var skill = SkillManager.Find(skillName);
         if (skill is null)
         {
             UI.Print($"  🤔 unknown command: /{skillName}  (try /help)", UI.Muted);

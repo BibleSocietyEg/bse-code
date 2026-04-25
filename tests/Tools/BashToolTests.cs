@@ -42,8 +42,10 @@ public class BashToolTests
     [Fact]
     public void RunShell_HungCommand_TimesOutAndReturnsError()
     {
-        // Use a very short timeout so the test stays fast
-        var command = OperatingSystem.IsWindows() ? "timeout /t 60 /nobreak" : "sleep 60";
+        // Use a very short timeout so the test stays fast.
+        // On Windows, 'timeout' requires an interactive console (stdin), so use
+        // 'ping' with a large repeat count instead — it works in non-interactive shells.
+        var command = OperatingSystem.IsWindows() ? "ping -n 60 127.0.0.1" : "sleep 60";
 
         var result = BashTool.RunShell(command, TimeSpan.FromMilliseconds(500));
 

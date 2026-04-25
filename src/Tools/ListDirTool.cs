@@ -3,11 +3,11 @@ using System.Text;
 /// <summary>Lists files and sub-directories at a given path.</summary>
 public sealed class ListDirTool : IToolHandler
 {
-    public string Name        => "list_dir";
+    public string Name => "list_dir";
     public string Description => "List files and directories at a path";
     public object ParameterSchema => new
     {
-        type     = "object",
+        type = "object",
         required = new[] { "path" },
         properties = new
         {
@@ -26,7 +26,7 @@ public sealed class ListDirTool : IToolHandler
         var sb = new StringBuilder();
         foreach (var entry in Directory.GetFileSystemEntries(path).OrderBy(e => e))
         {
-            var name  = Path.GetFileName(entry);
+            var name = Path.GetFileName(entry);
             var isDir = Directory.Exists(entry);
             sb.AppendLine(isDir ? $"[DIR]  {name}/" : $"       {name}");
         }

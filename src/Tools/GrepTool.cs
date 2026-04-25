@@ -10,26 +10,26 @@ public sealed class GrepTool : IToolHandler
 {
     private const int MaxMatches = 200;
 
-    public string Name        => "grep";
+    public string Name => "grep";
     public string Description => "Search for a regex pattern in files";
     public object ParameterSchema => new
     {
-        type     = "object",
+        type = "object",
         required = new[] { "pattern" },
         properties = new
         {
-            pattern   = new { type = "string", description = "Regex pattern to search for" },
-            path      = new { type = "string", description = "File or directory to search in (default: cwd)" },
+            pattern = new { type = "string", description = "Regex pattern to search for" },
+            path = new { type = "string", description = "File or directory to search in (default: cwd)" },
             recursive = new { type = "boolean", description = "Search recursively (default: true)" }
         }
     };
 
     public Task<string> ExecuteAsync(string argsJson)
     {
-        var args       = ArgumentParser.ParseStringMap(argsJson);
-        var pattern    = args["pattern"];
+        var args = ArgumentParser.ParseStringMap(argsJson);
+        var pattern = args["pattern"];
         var searchPath = args.GetValueOrDefault("path", Directory.GetCurrentDirectory());
-        var recursive  = !args.TryGetValue("recursive", out var r) || r != "false";
+        var recursive = !args.TryGetValue("recursive", out var r) || r != "false";
 
         Regex regex;
         try
@@ -47,9 +47,9 @@ public sealed class GrepTool : IToolHandler
                 searchPath, "*.*",
                 recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
 
-        var sb         = new StringBuilder();
+        var sb = new StringBuilder();
         int matchCount = 0;
-        var cwd        = Directory.GetCurrentDirectory();
+        var cwd = Directory.GetCurrentDirectory();
 
         foreach (var file in files)
         {
