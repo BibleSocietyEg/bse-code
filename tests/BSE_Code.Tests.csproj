@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>BSE_Code.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" Version="7.2.0" />
+  </ItemGroup>
+
+  <!-- Reference source files directly (no separate class library needed) -->
+  <ItemGroup>
+    <Compile Include="../src/Tools/ArgumentParser.cs" />
+    <Compile Include="../src/Tools/IToolHandler.cs" />
+    <Compile Include="../src/Tools/ToolRegistry.cs" />
+    <Compile Include="../src/Tools/ReadFileTool.cs" />
+    <Compile Include="../src/Tools/WriteFileTool.cs" />
+    <Compile Include="../src/Tools/BashTool.cs" />
+    <Compile Include="../src/Tools/ListDirTool.cs" />
+    <Compile Include="../src/Tools/GlobTool.cs" />
+    <Compile Include="../src/Tools/GrepTool.cs" />
+    <Compile Include="../src/Theme.cs" />
+    <Compile Include="../src/MemoryManager.cs" />
+    <Compile Include="../src/SkillManager.cs" />
+    <Compile Include="../src/SessionManager.cs" />
+    <Compile Include="../src/UI.cs" />
+    <Compile Include="../src/ConfigManager.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenAI" Version="2.10.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

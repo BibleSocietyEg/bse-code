@@ -21,6 +21,11 @@
     <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
+  <!-- Exclude the test project from the main project's compile glob -->
+  <ItemGroup>
+    <Compile Remove="tests/**" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="OpenAI" Version="2.10.0" />
   </ItemGroup>
