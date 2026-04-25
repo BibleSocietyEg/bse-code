@@ -105,7 +105,7 @@ jobs:
         with:
           fetch-depth: 0  # needed for git-cliff changelog
 
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           path: ./artifacts
           merge-multiple: true
