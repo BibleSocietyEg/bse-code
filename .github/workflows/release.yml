@@ -15,7 +15,7 @@ jobs:
     name: Test before release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-dotnet@v5
         with:
@@ -54,7 +54,7 @@ jobs:
             asset: bse-code-osx-arm64
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-dotnet@v5
         with:
@@ -101,7 +101,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0  # needed for git-cliff changelog
 
@@ -129,7 +129,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v5
         with:
@@ -151,7 +151,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-dotnet@v5
         with:
