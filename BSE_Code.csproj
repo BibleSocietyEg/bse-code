@@ -21,20 +21,17 @@
     <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
-  <!-- Expose internals to the test project -->
   <ItemGroup>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-      <_Parameter1>BSE_Code.Tests</_Parameter1>
-    </AssemblyAttribute>
-  </ItemGroup>
-
-  <!-- Exclude the test project from the main project's compile glob -->
-  <ItemGroup>
+    <!-- Exclude all src/ files from the exe project glob; Core compiles them.
+         Only Program.cs (the entry point) belongs to the exe.
+         Also exclude tests/ which has its own project. -->
+    <Compile Remove="src/**" />
     <Compile Remove="tests/**" />
+    <Compile Include="src/Program.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="OpenAI" Version="2.10.0" />
+    <ProjectReference Include="src/BSE_Code.Core.csproj" />
   </ItemGroup>
 
 </Project>
