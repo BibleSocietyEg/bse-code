@@ -9,9 +9,7 @@ public class BashToolTests
     [Fact]
     public async Task ExecuteAsync_SimpleEchoCommand_ReturnsOutput()
     {
-        var command = OperatingSystem.IsWindows() ? "echo hello" : "echo hello";
-
-        var result = await _tool.ExecuteAsync($$"""{"command": "{{command}}"}""");
+        var result = await _tool.ExecuteAsync("""{"command": "echo hello"}""");
 
         result.Trim().Should().Be("hello");
     }
@@ -25,6 +23,15 @@ public class BashToolTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_CustomTimeout_IsRespected()
+    {
+        // A 1-second timeout on a fast command should still succeed
+        var result = await _tool.ExecuteAsync("""{"command": "echo fast", "timeout_seconds": "1"}""");
+
+        result.Trim().Should().Be("fast");
+    }
+
+    [Fact]
     public void RunShell_EchoCommand_ReturnsOutput()
     {
         var result = BashTool.RunShell("echo test");
@@ -33,12 +40,31 @@ public class BashToolTests
     }
 
     [Fact]
+    public void RunShell_HungCommand_TimesOutAndReturnsError()
+    {
+        // Use a very short timeout so the test stays fast
+        var command = OperatingSystem.IsWindows() ? "timeout /t 60 /nobreak" : "sleep 60";
+
+        var result = BashTool.RunShell(command, TimeSpan.FromMilliseconds(500));
+
+        result.Should().StartWith("ERROR: Command timed out");
+    }
+
+    [Fact]
+    public void RunShell_NonZeroExitCode_StillReturnsOutput()
+    {
+        // A command that exits non-zero should still return whatever it printed
+        var command = OperatingSystem.IsWindows() ? "echo oops & exit 1" : "echo oops; exit 1";
+
+        var result = BashTool.RunShell(command);
+
+        result.Should().Contain("oops");
+    }
+
+    [Fact]
     public void RunShell_CommandWithStderr_IncludesStderrInOutput()
     {
-        // A command that writes to stderr
-        var command = OperatingSystem.IsWindows()
-            ? "echo error 1>&2"
-            : "echo error >&2";
+        var command = OperatingSystem.IsWindows() ? "echo error 1>&2" : "echo error >&2";
 
         var result = BashTool.RunShell(command);
 
@@ -49,5 +75,11 @@ public class BashToolTests
     public void Name_IsBash()
     {
         _tool.Name.Should().Be("Bash");
+    }
+
+    [Fact]
+    public void DefaultTimeout_IsThirtySeconds()
+    {
+        BashTool.DefaultTimeout.Should().Be(TimeSpan.FromSeconds(30));
     }
 }

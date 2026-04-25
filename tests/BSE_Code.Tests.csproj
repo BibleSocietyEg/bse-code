@@ -39,6 +39,8 @@
     <Compile Include="../src/SessionManager.cs" />
     <Compile Include="../src/UI.cs" />
     <Compile Include="../src/ConfigManager.cs" />
+    <Compile Include="../src/ToolCallAccumulator.cs" />
+    <Compile Include="../src/McpManager.cs" />
   </ItemGroup>
 
   <ItemGroup>
