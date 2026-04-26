@@ -140,7 +140,9 @@ public class McpManagerTests
     [Fact]
     public async Task CallToolAsync_ExceptionDuringCall_ReturnsErrorAndWarns()
     {
-        // Load a server config with a non-existent command so process.Start() throws
+        // Load a server config with a non-existent command so process.Start() throws.
+        // With persistent sessions, the server fails to start at LoadAsync time,
+        // so CallToolAsync returns the "not found or disabled" error string.
         var tempMcpPath = await WriteTempMcpJsonAsync(new
         {
             mcpServers = new
@@ -156,14 +158,13 @@ public class McpManagerTests
 
         try
         {
-            await McpManager.LoadAsync(tempMcpPath);
-
             var stdoutCapture = new System.IO.StringWriter();
             var originalOut = Console.Out;
             Console.SetOut(stdoutCapture);
             string result;
             try
             {
+                await McpManager.LoadAsync(tempMcpPath);
                 result = await McpManager.CallToolAsync("broken_server", "some_tool", "{}");
             }
             finally
@@ -171,7 +172,8 @@ public class McpManagerTests
                 Console.SetOut(originalOut);
             }
 
-            result.Should().StartWith("ERROR: ");
+            // Server failed to start, so it's not in sessions — returns error string
+            result.Should().Contain("ERROR");
             stdoutCapture.ToString().Should().Contain("⚠️");
         }
         finally
@@ -184,7 +186,9 @@ public class McpManagerTests
     public async Task CallToolAsync_NullResponse_ReturnsErrorAndWarns()
     {
         // Use a command that starts but exits immediately without writing any stdout output,
-        // causing ReadLineWithTimeoutAsync to return null (EOF).
+        // causing ReadLineWithTimeoutAsync to return null (EOF) during initialize.
+        // With persistent sessions, the server fails to start at LoadAsync time,
+        // so CallToolAsync returns the "not found or disabled" error string.
         string command;
         string[] args;
         if (OperatingSystem.IsWindows())
@@ -213,14 +217,13 @@ public class McpManagerTests
 
         try
         {
-            await McpManager.LoadAsync(tempMcpPath);
-
             var stdoutCapture = new System.IO.StringWriter();
             var originalOut = Console.Out;
             Console.SetOut(stdoutCapture);
             string result;
             try
             {
+                await McpManager.LoadAsync(tempMcpPath);
                 result = await McpManager.CallToolAsync("silent_server", "some_tool", "{}");
             }
             finally
@@ -228,7 +231,8 @@ public class McpManagerTests
                 Console.SetOut(originalOut);
             }
 
-            result.Should().StartWith("ERROR: No response");
+            // Server failed to start (no initialize response), so it's not in sessions
+            result.Should().Contain("ERROR");
             stdoutCapture.ToString().Should().Contain("⚠️");
         }
         finally
@@ -240,6 +244,9 @@ public class McpManagerTests
     // ── Task 10.1: Property 8 ─────────────────────────────────────────────────
 
     // Feature: codebase-quality-improvements, Property 8: McpManager always surfaces errors visibly
+    // With persistent sessions, a server that fails to start at LoadAsync time is not added to
+    // _sessions. CallToolAsync then returns the "not found or disabled" error (which contains "ERROR").
+    // The warning is emitted during LoadAsync when the server fails to start.
     [Property(MaxTest = 50)]
     public bool CallToolAsync_AnyException_ReturnsErrorStringAndWarns(NonEmptyString serverName)
     {
@@ -259,14 +266,13 @@ public class McpManagerTests
 
         try
         {
-            McpManager.LoadAsync(tempMcpPath).GetAwaiter().GetResult();
-
             var stdoutCapture = new System.IO.StringWriter();
             var originalOut = Console.Out;
             Console.SetOut(stdoutCapture);
             string result;
             try
             {
+                McpManager.LoadAsync(tempMcpPath).GetAwaiter().GetResult();
                 result = McpManager.CallToolAsync(serverName.Get, "tool", "{}").GetAwaiter().GetResult();
             }
             finally
@@ -274,7 +280,9 @@ public class McpManagerTests
                 Console.SetOut(originalOut);
             }
 
-            return result.StartsWith("ERROR: ") && stdoutCapture.ToString().Contains("⚠️");
+            // Server failed to start → not in sessions → CallToolAsync returns error string
+            // Warning is emitted during LoadAsync when the server fails to start
+            return result.Contains("ERROR") && stdoutCapture.ToString().Contains("⚠️");
         }
         finally
         {

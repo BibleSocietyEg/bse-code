@@ -47,12 +47,57 @@ public class McpTool
     public JsonElement InputSchema { get; init; }
 }
 
+// ── MCP Session ───────────────────────────────────────────────────────────────
+
+/// <summary>
+/// Represents a persistent, initialized connection to a single MCP server process.
+/// </summary>
+internal sealed class McpSession : IAsyncDisposable
+{
+    public string ServerName { get; }
+    public Process Process { get; }
+    public StreamWriter Stdin { get; }
+    public StreamReader Stdout { get; }
+    public bool IsAlive => !Process.HasExited;
+
+    private int _nextId = 1;
+    public int NextId() => Interlocked.Increment(ref _nextId);
+
+    public McpSession(string serverName, Process process)
+    {
+        ServerName = serverName;
+        Process = process;
+        Stdin = process.StandardInput;
+        Stdout = process.StandardOutput;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (!Process.HasExited)
+                Process.Kill(entireProcessTree: true);
+        }
+        catch { /* best-effort */ }
+
+        try
+        {
+            await Process.WaitForExitAsync()
+                .WaitAsync(TimeSpan.FromSeconds(2))
+                .ConfigureAwait(false);
+        }
+        catch { /* timeout or already exited */ }
+
+        Process.Dispose();
+    }
+}
+
 // ── Manager ───────────────────────────────────────────────────────────────────
 
 /// <summary>
 /// Manages MCP (Model Context Protocol) server connections.
 /// Config file: ~/.bse-code/mcp.json
-/// 
+///
 /// Supports stdio-based MCP servers (the most common type).
 /// Tools from MCP servers are exposed as bse-code tools with the naming
 /// convention: mcp__serverName__toolName
@@ -71,10 +116,16 @@ public static class McpManager
 
     private static McpConfig _config = new();
     private static readonly List<McpTool> _tools = [];
-    private static readonly Dictionary<string, McpServerConfig> _activeServers = [];
+    private static readonly Dictionary<string, McpSession> _sessions = [];
+    private static readonly Dictionary<string, int> _restartCounts = [];
+    private static readonly HashSet<string> _unavailable = [];
 
     public static IReadOnlyList<McpTool> Tools => _tools;
-    public static IReadOnlyDictionary<string, McpServerConfig> Servers => _activeServers;
+
+    public static IReadOnlyDictionary<string, McpServerConfig> Servers =>
+        _sessions.Keys
+            .Where(k => _config.McpServers.ContainsKey(k))
+            .ToDictionary(k => k, k => _config.McpServers[k]);
 
     /// <summary>Loads MCP config and discovers tools from all enabled servers.</summary>
     public static Task LoadAsync() => LoadAsync(McpFile);
@@ -82,8 +133,12 @@ public static class McpManager
     /// <summary>Loads MCP config from the specified path and discovers tools from all enabled servers.</summary>
     internal static async Task LoadAsync(string mcpFilePath)
     {
+        // Terminate existing sessions first
+        await DisposeAsync();
+
         _tools.Clear();
-        _activeServers.Clear();
+        _restartCounts.Clear();
+        _unavailable.Clear();
 
         if (!File.Exists(mcpFilePath)) return;
 
@@ -101,19 +156,128 @@ public static class McpManager
         foreach (var (name, server) in _config.McpServers)
         {
             if (server.Disabled) continue;
-            _activeServers[name] = server;
-            await DiscoverToolsAsync(name, server);
+
+            try
+            {
+                var session = await SpawnSessionAsync(name, server);
+                _sessions[name] = session;
+                await DiscoverToolsAsync(name, session);
+            }
+            catch (Exception ex)
+            {
+                UI.Warn($"🔌 MCP server '{name}': failed to start — {ex.Message}");
+            }
         }
     }
 
     /// <summary>
-    /// Discovers tools from an MCP server by sending the initialize + tools/list requests.
+    /// Spawns a new MCP session: starts the process, performs the initialize handshake,
+    /// and returns the ready-to-use session.
     /// </summary>
-    private static async Task DiscoverToolsAsync(string serverName, McpServerConfig server)
+    private static async Task<McpSession> SpawnSessionAsync(string serverName, McpServerConfig server)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = server.Command,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        foreach (var arg in server.Args)
+            startInfo.ArgumentList.Add(arg);
+
+        foreach (var (k, v) in server.Env)
+            startInfo.Environment[k] = v;
+
+        var process = new Process { StartInfo = startInfo };
+        process.Start();
+
+        // Send initialize request (id=1)
+        var initRequest = new
+        {
+            jsonrpc = "2.0",
+            id = 1,
+            method = "initialize",
+            @params = new
+            {
+                protocolVersion = "2024-11-05",
+                capabilities = new { },
+                clientInfo = new { name = "bse-code", version = "1.3.0" }
+            }
+        };
+
+        await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(initRequest));
+        await process.StandardInput.FlushAsync();
+
+        // Read initialize response
+        var initLine = await ReadLineWithTimeoutAsync(process.StandardOutput, 5000);
+        if (initLine is null)
+        {
+            try { process.Kill(entireProcessTree: true); } catch { }
+            process.Dispose();
+            throw new Exception($"MCP server '{serverName}' did not respond to initialize");
+        }
+
+        // Send notifications/initialized
+        var initializedNotif = new { jsonrpc = "2.0", method = "notifications/initialized" };
+        await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(initializedNotif));
+        await process.StandardInput.FlushAsync();
+
+        return new McpSession(serverName, process);
+    }
+
+    /// <summary>
+    /// Ensures the session for the given server is alive, restarting up to 3 times if needed.
+    /// Returns null if the server is unavailable or restart attempts are exhausted.
+    /// </summary>
+    private static async Task<McpSession?> EnsureSessionAliveAsync(string serverName)
+    {
+        if (_unavailable.Contains(serverName)) return null;
+
+        if (_sessions.TryGetValue(serverName, out var session) && session.IsAlive)
+            return session;
+
+        _restartCounts.TryGetValue(serverName, out int count);
+        if (count >= 3)
+        {
+            _unavailable.Add(serverName);
+            return null;
+        }
+
+        UI.Warn($"🔌 MCP '{serverName}' exited unexpectedly. Restarting (attempt {count + 1}/3)...");
+        _restartCounts[serverName] = count + 1;
+
+        try
+        {
+            // Dispose old session if it exists
+            if (_sessions.TryGetValue(serverName, out var oldSession))
+            {
+                await oldSession.DisposeAsync();
+                _sessions.Remove(serverName);
+            }
+
+            var newSession = await SpawnSessionAsync(serverName, _config.McpServers[serverName]);
+            _sessions[serverName] = newSession;
+            return newSession;
+        }
+        catch (Exception ex)
+        {
+            UI.Warn($"🔌 MCP '{serverName}': restart failed — {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Discovers tools from an MCP server using the persistent session.
+    /// </summary>
+    private static async Task DiscoverToolsAsync(string serverName, McpSession session)
     {
         try
         {
-            var tools = await SendMcpRequestAsync(serverName, server, "tools/list", null);
+            var tools = await SendMcpRequestAsync(session, "tools/list", null);
             if (tools is null) return;
 
             if (tools.Value.TryGetProperty("tools", out var toolsArr))
@@ -141,11 +305,12 @@ public static class McpManager
     }
 
     /// <summary>
-    /// Executes an MCP tool call by spawning the server process and sending a JSON-RPC request.
+    /// Executes an MCP tool call using the persistent session.
     /// </summary>
     public static async Task<string> CallToolAsync(string serverName, string toolName, string argsJson)
     {
-        if (!_activeServers.TryGetValue(serverName, out var server))
+        var session = await EnsureSessionAliveAsync(serverName);
+        if (session is null)
             return $"❌ ERROR: MCP server '{serverName}' not found or disabled.";
 
         try
@@ -156,7 +321,7 @@ public static class McpManager
                 arguments = JsonSerializer.Deserialize<JsonElement>(argsJson)
             };
 
-            var result = await SendMcpRequestAsync(serverName, server, "tools/call", callParams);
+            var result = await SendMcpRequestAsync(session, "tools/call", callParams);
             if (result is null)
             {
                 UI.Warn($"🔌 MCP '{serverName}/{toolName}': no response (timeout or empty).");
@@ -185,72 +350,23 @@ public static class McpManager
     }
 
     /// <summary>
-    /// Sends a JSON-RPC 2.0 request to an MCP server via stdio.
+    /// Sends a JSON-RPC 2.0 request to an MCP server via the persistent session's stdio streams.
     /// </summary>
     private static async Task<JsonElement?> SendMcpRequestAsync(
-        string serverName, McpServerConfig server, string method, object? @params)
+        McpSession session, string method, object? @params)
     {
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = server.Command,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        foreach (var arg in server.Args)
-            startInfo.ArgumentList.Add(arg);
-
-        foreach (var (k, v) in server.Env)
-            startInfo.Environment[k] = v;
-
-        using var process = new Process { StartInfo = startInfo };
-        process.Start();
-
-        // Send initialize first
-        var initRequest = new
-        {
-            jsonrpc = "2.0",
-            id = 1,
-            method = "initialize",
-            @params = new
-            {
-                protocolVersion = "2024-11-05",
-                capabilities = new { },
-                clientInfo = new { name = "bse-code", version = "1.3.0" }
-            }
-        };
-
-        await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(initRequest));
-        await process.StandardInput.FlushAsync();
-
-        // Read initialize response
-        var initLine = await ReadLineWithTimeoutAsync(process.StandardOutput, 5000);
-        if (initLine is null) { process.Kill(); return null; }
-
-        // Send initialized notification
-        var initializedNotif = new { jsonrpc = "2.0", method = "notifications/initialized" };
-        await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(initializedNotif));
-        await process.StandardInput.FlushAsync();
-
-        // Send actual request
         var request = new
         {
             jsonrpc = "2.0",
-            id = 2,
+            id = session.NextId(),
             method,
             @params
         };
 
-        await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(request));
-        await process.StandardInput.FlushAsync();
+        await session.Stdin.WriteLineAsync(JsonSerializer.Serialize(request));
+        await session.Stdin.FlushAsync();
 
-        // Read response
-        var responseLine = await ReadLineWithTimeoutAsync(process.StandardOutput, 10000);
-        process.Kill();
-
+        var responseLine = await ReadLineWithTimeoutAsync(session.Stdout, 10000);
         if (responseLine is null) return null;
 
         var doc = JsonDocument.Parse(responseLine);
@@ -275,6 +391,18 @@ public static class McpManager
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Gracefully terminates all active MCP session processes and releases resources.
+    /// </summary>
+    public static async ValueTask DisposeAsync()
+    {
+        foreach (var session in _sessions.Values)
+        {
+            await session.DisposeAsync();
+        }
+        _sessions.Clear();
     }
 
     /// <summary>

@@ -45,5 +45,12 @@ ChatClient BuildClient() => new ChatClient(
 var engine = new ReplEngine(config, toolRegistry, BuildClient,
     ReplEngine.BuildDefaultSystemPrompt, () => ReplEngine.BuildDefaultOptions(toolRegistry));
 
-if (inlinePrompt is not null) await engine.RunOneShotAsync(inlinePrompt, outputFormat);
-else await engine.RunAsync();
+try
+{
+    if (inlinePrompt is not null) await engine.RunOneShotAsync(inlinePrompt, outputFormat);
+    else await engine.RunAsync();
+}
+finally
+{
+    await McpManager.DisposeAsync();
+}
