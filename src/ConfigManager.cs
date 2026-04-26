@@ -1,7 +1,5 @@
 using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -37,10 +35,6 @@ public class AppConfig
     /// <summary>API key for authentication (not required for local providers).</summary>
     [JsonPropertyName("api_key")]
     public string ApiKey { get; set; } = "";
-
-    /// <summary>Whether the API key is encrypted on disk (using DPAPI).</summary>
-    [JsonPropertyName("api_key_encrypted")]
-    public bool ApiKeyEncrypted { get; set; } = false;
 
     /// <summary>Model identifier (e.g. "gpt-4o", "llama3", "google/gemini-2.5-pro-exp-03-25:free").</summary>
     [JsonPropertyName("model")]
@@ -588,33 +582,7 @@ public static class ConfigManager
     private static void Save(AppConfig config)
     {
         Directory.CreateDirectory(ConfigDir);
-
-        // Encrypt API key before saving if on Windows and not already using env vars
-        if (OperatingSystem.IsWindows() && !string.IsNullOrEmpty(config.ApiKey) && config.ApiKey != "local")
-        {
-            try
-            {
-                var data = Encoding.UTF8.GetBytes(config.ApiKey);
-                var encrypted = ProtectedData.Protect(data, null, DataProtectionScope.CurrentUser);
-                config.ApiKey = Convert.ToBase64String(encrypted);
-                config.ApiKeyEncrypted = true;
-            }
-            catch { /* fallback to plaintext if DPAPI fails */ }
-        }
-
         File.WriteAllText(ConfigFile, JsonSerializer.Serialize(config, JsonOpts));
-
-        // Restore plaintext key in memory after saving
-        if (config.ApiKeyEncrypted)
-        {
-            try
-            {
-                var data = Convert.FromBase64String(config.ApiKey);
-                var decrypted = ProtectedData.Unprotect(data, null, DataProtectionScope.CurrentUser);
-                config.ApiKey = Encoding.UTF8.GetString(decrypted);
-            }
-            catch { }
-        }
     }
 
     /// <summary>Persists only the theme change to config.json.</summary>
@@ -633,26 +601,7 @@ public static class ConfigManager
     private static AppConfig Load()
     {
         var json = File.ReadAllText(ConfigFile);
-        var config = JsonSerializer.Deserialize<AppConfig>(json) ?? new AppConfig();
-
-        if (config.ApiKeyEncrypted && OperatingSystem.IsWindows() && !string.IsNullOrEmpty(config.ApiKey))
-        {
-            try
-            {
-                var data = Convert.FromBase64String(config.ApiKey);
-                var decrypted = ProtectedData.Unprotect(data, null, DataProtectionScope.CurrentUser);
-                config.ApiKey = Encoding.UTF8.GetString(decrypted);
-            }
-            catch (Exception ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"  ❌ Failed to decrypt API key: {ex.Message}");
-                Console.ResetColor();
-                config.ApiKey = ""; // Clear corrupted key
-            }
-        }
-
-        return config;
+        return JsonSerializer.Deserialize<AppConfig>(json) ?? new AppConfig();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

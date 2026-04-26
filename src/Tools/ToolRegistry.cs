@@ -53,7 +53,6 @@ public sealed class ToolRegistry
     [
         new ReadFileTool(),
         new WriteFileTool(),
-        new EditFileTool(),
         new BashTool(),
         new ListDirTool(),
         new GlobTool(),
