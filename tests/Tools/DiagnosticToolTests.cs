@@ -91,16 +91,14 @@ public class DiagnosticToolTests
         NonEmptyString file, PositiveInt line, PositiveInt col,
         NonEmptyString code, NonEmptyString message)
     {
-        // Build a valid MSBuild diagnostic line
-        // Sanitize inputs: remove parens, colons, newlines that would break the format
         // Sanitize inputs to produce valid MSBuild format tokens
-        // File: remove parens, colons, newlines, and control characters
+        // File: remove parens, colons, control chars, then trim (ParseMsBuild trims group 1)
         var cleanFile = System.Text.RegularExpressions.Regex.Replace(
             file.Get.Replace("(", "").Replace(")", "").Replace(":", ""),
-            @"[\x00-\x1F\x7F]", "");
-        // MSBuild code must match \w+ (word chars only)
+            @"[\x00-\x1F\x7F]", "").Trim();
+        // MSBuild code must match \w+ (word chars only, no spaces)
         var cleanCode = System.Text.RegularExpressions.Regex.Replace(code.Get, @"\W", "");
-        // Message: replace newlines/carriage returns with spaces, then trim to match ParseMsBuild behavior
+        // Message: replace newlines with spaces, trim (ParseMsBuild trims group 6)
         var cleanMsg  = System.Text.RegularExpressions.Regex.Replace(message.Get, @"[\r\n]", " ").Trim();
 
         if (string.IsNullOrWhiteSpace(cleanFile) || string.IsNullOrWhiteSpace(cleanCode) || string.IsNullOrWhiteSpace(cleanMsg))

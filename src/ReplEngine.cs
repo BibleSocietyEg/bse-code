@@ -193,9 +193,7 @@ public sealed class ReplEngine
                         {
                             if (!string.IsNullOrEmpty(part.Text))
                             {
-                                Console.ForegroundColor = UI.Response;
-                                Console.Write(part.Text);
-                                Console.ResetColor();
+                                // During streaming: only buffer, don't write to console
                                 contentBuilder.Append(part.Text);
                                 captureOutput?.Append(part.Text);
                             }
@@ -234,7 +232,11 @@ public sealed class ReplEngine
                 }
             }
 
-            if (contentBuilder.Length > 0) Console.WriteLine();
+            if (contentBuilder.Length > 0)
+            {
+                MarkdownRenderer.Render(contentBuilder.ToString());
+                Console.WriteLine();
+            }
 
             if (accumulators.Count == 0)
             {
