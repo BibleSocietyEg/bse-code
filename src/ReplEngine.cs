@@ -253,28 +253,47 @@ public sealed class ReplEngine
 
             messages.Add(new AssistantChatMessage(toolCalls));
 
-            foreach (var (acc, toolCall) in accumulators.Values.OrderBy(a => a.Index).Zip(toolCalls))
-            {
-                PrintToolCall(acc.Name, acc.Arguments);
-                _sessionToolCalls++;
+            // ── Parallel tool dispatch with per-file serialization ────────────
+            var orderedAccs = accumulators.Values.OrderBy(a => a.Index).ToList();
+            var fileLocks = new System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim>();
 
-                string toolResult;
-                bool success = true;
+            // Print all tool call headers before dispatching
+            foreach (var acc in orderedAccs)
+                PrintToolCall(acc.Name, acc.Arguments);
+
+            _sessionToolCalls += orderedAccs.Count;
+
+            // Execute all tool calls concurrently, serializing same-file-path calls
+            var tasks = orderedAccs.Select(async acc =>
+            {
+                var filePath = ExtractFilePath(acc.Name, acc.Arguments) ?? "__no_file__";
+                var sem = fileLocks.GetOrAdd(filePath, _ => new SemaphoreSlim(1, 1));
+                await sem.WaitAsync();
                 try
                 {
-                    toolResult = acc.Name.StartsWith("mcp__")
-                        ? await HandleMcpToolAsync(acc.Name, acc.Arguments)
-                        : await _toolRegistry.ExecuteAsync(acc.Name, acc.Arguments);
+                    string result;
+                    bool success = true;
+                    try
+                    {
+                        result = acc.Name.StartsWith("mcp__")
+                            ? await HandleMcpToolAsync(acc.Name, acc.Arguments)
+                            : await _toolRegistry.ExecuteAsync(acc.Name, acc.Arguments);
+                    }
+                    catch (Exception ex)
+                    {
+                        result = $"ERROR: {ex.Message}";
+                        success = false;
+                    }
+                    PrintToolResult(acc.Name, result, success);
+                    return result;
                 }
-                catch (Exception ex)
-                {
-                    toolResult = $"ERROR: {ex.Message}";
-                    success = false;
-                }
+                finally { sem.Release(); }
+            }).ToList();
 
-                PrintToolResult(acc.Name, toolResult, success);
-                messages.Add(new ToolChatMessage(toolCall.Id, toolResult));
-            }
+            var results = await Task.WhenAll(tasks);
+
+            foreach (var (toolCall, result) in toolCalls.Zip(results))
+                messages.Add(new ToolChatMessage(toolCall.Id, result));
         }
     }
 
@@ -287,6 +306,25 @@ public sealed class ReplEngine
         var parts = fullName.Split("__", 3);
         if (parts.Length < 3) return $"Invalid MCP tool name: {fullName}";
         return await McpManager.CallToolAsync(parts[1], parts[2], argsJson);
+    }
+
+    /// <summary>
+    /// Extracts the file path from tool arguments for same-file serialization.
+    /// Returns null for tools that don't operate on a specific file.
+    /// </summary>
+    internal static string? ExtractFilePath(string toolName, string argsJson)
+    {
+        try
+        {
+            if (toolName is "read_file" or "Write" or "edit_file")
+            {
+                var d = ArgumentParser.ParseElementMap(argsJson);
+                if (d.TryGetValue("file_path", out var fp))
+                    return fp.GetString();
+            }
+        }
+        catch { /* ignore parse errors */ }
+        return null;
     }
 
     // ── @ file injection ──────────────────────────────────────────────────────
