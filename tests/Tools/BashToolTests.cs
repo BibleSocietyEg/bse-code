@@ -84,4 +84,49 @@ public class BashToolTests
     {
         BashTool.DefaultTimeout.Should().Be(TimeSpan.FromSeconds(30));
     }
+
+    // ── T4: stdin support tests ───────────────────────────────────────────────
+
+    [Fact]
+    public void RunShell_NoStdin_CommandReceivesEof()
+    {
+        // A command that reads all of stdin should exit immediately when stdin is closed (EOF)
+        // rather than hanging. We verify it completes within the timeout.
+        var command = OperatingSystem.IsWindows()
+            ? "findstr /r \".*\""   // reads stdin until EOF, exits 0 or 1
+            : "cat";                // reads stdin until EOF
+
+        var result = BashTool.RunShell(command, TimeSpan.FromSeconds(5), stdin: null);
+
+        // Should complete (not time out) — result may be empty or contain STDERR
+        result.Should().NotStartWith("ERROR: Command timed out");
+    }
+
+    [Fact]
+    public void RunShell_WithStdin_CommandReceivesInput()
+    {
+        // A command that reads from stdin should receive the provided string
+        var command = OperatingSystem.IsWindows()
+            ? "findstr /r \".*\""   // echoes matching lines from stdin
+            : "cat";                // echoes stdin to stdout
+
+        var result = BashTool.RunShell(command, TimeSpan.FromSeconds(5), stdin: "hello from stdin");
+
+        result.Should().Contain("hello from stdin");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithStdinParam_CommandReceivesInput()
+    {
+        var command = OperatingSystem.IsWindows() ? "findstr /r \".*\"" : "cat";
+        var argsJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            command,
+            stdin = "test stdin value"
+        });
+
+        var result = await _tool.ExecuteAsync(argsJson);
+
+        result.Should().Contain("test stdin value");
+    }
 }

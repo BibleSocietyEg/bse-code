@@ -15,7 +15,8 @@ public sealed class BashTool : IToolHandler
         properties = new
         {
             command = new { type = "string", description = "The shell command to execute" },
-            timeout_seconds = new { type = "integer", description = "Timeout in seconds (default: 30)" }
+            timeout_seconds = new { type = "integer", description = "Timeout in seconds (default: 30)" },
+            stdin = new { type = "string", description = "Optional string to write to stdin before closing" }
         }
     };
 
@@ -30,7 +31,9 @@ public sealed class BashTool : IToolHandler
         if (args.TryGetValue("timeout_seconds", out var ts) && int.TryParse(ts, out var secs) && secs > 0)
             timeout = TimeSpan.FromSeconds(secs);
 
-        return Task.FromResult(RunShell(command, timeout));
+        args.TryGetValue("stdin", out var stdinInput);
+
+        return Task.FromResult(RunShell(command, timeout, stdinInput));
     }
 
     /// <summary>
@@ -44,12 +47,13 @@ public sealed class BashTool : IToolHandler
     /// trusted source (i.e., the user has reviewed and approved it).
     /// Do not call this method with untrusted or unvalidated input.
     /// </remarks>
-    internal static string RunShell(string command, TimeSpan? timeout = null)
+    internal static string RunShell(string command, TimeSpan? timeout = null, string? stdin = null)
     {
         var effectiveTimeout = timeout ?? DefaultTimeout;
 
         var startInfo = new ProcessStartInfo
         {
+            RedirectStandardInput = true,   // always redirect so we can close it
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -70,6 +74,11 @@ public sealed class BashTool : IToolHandler
 
         using var process = new Process { StartInfo = startInfo };
         process.Start();
+
+        // Write stdin if provided, then always close to send EOF
+        if (stdin is not null)
+            process.StandardInput.Write(stdin);
+        process.StandardInput.Close();
 
         // Read stdout/stderr concurrently to avoid deadlocks on large output
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
