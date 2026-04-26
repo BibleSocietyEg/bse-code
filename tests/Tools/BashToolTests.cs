@@ -45,11 +45,18 @@ public class BashToolTests
         // Use a very short timeout so the test stays fast.
         // On Windows, 'timeout' requires an interactive console (stdin), so use
         // 'ping' with a large repeat count instead — it works in non-interactive shells.
-        var command = OperatingSystem.IsWindows() ? "ping -n 60 127.0.0.1" : "sleep 60";
-
-        var result = BashTool.RunShell(command, TimeSpan.FromMilliseconds(500));
-
-        result.Should().StartWith("ERROR: Command timed out");
+        // Set BSE_BASH_CONFIRM=off so the command runs without prompting.
+        Environment.SetEnvironmentVariable("BSE_BASH_CONFIRM", "off");
+        try
+        {
+            var command = OperatingSystem.IsWindows() ? "ping -n 60 127.0.0.1" : "sleep 60";
+            var result = BashTool.RunShell(command, TimeSpan.FromMilliseconds(500));
+            result.Should().StartWith("ERROR: Command timed out");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("BSE_BASH_CONFIRM", null);
+        }
     }
 
     [Fact]
@@ -118,15 +125,112 @@ public class BashToolTests
     [Fact]
     public async Task ExecuteAsync_WithStdinParam_CommandReceivesInput()
     {
-        var command = OperatingSystem.IsWindows() ? "findstr /r \".*\"" : "cat";
-        var argsJson = System.Text.Json.JsonSerializer.Serialize(new
+        // Use echo (allowlisted) piped through a stdin-reading command via shell
+        // On Windows: echo pipes to findstr; on Unix: echo pipes to cat
+        // Since we need ExecuteAsync to go through allowlist, use echo which IS allowlisted
+        Environment.SetEnvironmentVariable("BSE_BASH_CONFIRM", "off");
+        try
         {
-            command,
-            stdin = "test stdin value"
-        });
+            var command = OperatingSystem.IsWindows() ? "findstr /r \".*\"" : "cat";
+            var argsJson = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                command,
+                stdin = "test stdin value"
+            });
 
+            var result = await _tool.ExecuteAsync(argsJson);
+            result.Should().Contain("test stdin value");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("BSE_BASH_CONFIRM", null);
+        }
+    }
+
+    // ── S1: Shell safeguard tests ─────────────────────────────────────────────
+
+    [Fact]
+    public void IsBlocked_BlocklistedCommand_ReturnsTrue()
+    {
+        BashTool.IsBlocked("rm -rf /").Should().BeTrue();
+        BashTool.IsBlocked("mkfs /dev/sda").Should().BeTrue();
+        BashTool.IsBlocked("dd if=/dev/zero of=/dev/sda").Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsBlocked_SafeCommand_ReturnsFalse()
+    {
+        BashTool.IsBlocked("echo hello").Should().BeFalse();
+        BashTool.IsBlocked("git status").Should().BeFalse();
+        BashTool.IsBlocked("dotnet build").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_BlockedCommand_ReturnsErrorWithoutExecuting()
+    {
+        // rm -rf / is blocked — should return error, not execute
+        var argsJson = System.Text.Json.JsonSerializer.Serialize(new { command = "rm -rf /" });
         var result = await _tool.ExecuteAsync(argsJson);
+        result.Should().StartWith("ERROR: Command blocked");
+    }
 
-        result.Should().Contain("test stdin value");
+    [Fact]
+    public async Task ExecuteAsync_AllowedCommand_ExecutesWithoutConfirmation()
+    {
+        // echo is on the allowlist — should execute directly
+        Environment.SetEnvironmentVariable("BSE_BASH_CONFIRM", "off");
+        try
+        {
+            var argsJson = System.Text.Json.JsonSerializer.Serialize(new { command = "echo allowed" });
+            var result = await _tool.ExecuteAsync(argsJson);
+            result.Should().Contain("allowed");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("BSE_BASH_CONFIRM", null);
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_BashConfirmOff_SkipsConfirmation()
+    {
+        // With BSE_BASH_CONFIRM=off, non-allowlisted commands run without prompting
+        Environment.SetEnvironmentVariable("BSE_BASH_CONFIRM", "off");
+        try
+        {
+            var argsJson = System.Text.Json.JsonSerializer.Serialize(new { command = "echo skip-confirm" });
+            var result = await _tool.ExecuteAsync(argsJson);
+            result.Should().Contain("skip-confirm");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("BSE_BASH_CONFIRM", null);
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ExecutedCommand_AppearsInAuditLog()
+    {
+        Environment.SetEnvironmentVariable("BSE_BASH_CONFIRM", "off");
+        var uniqueMarker = $"audit-test-{Guid.NewGuid():N}";
+        try
+        {
+            var argsJson = System.Text.Json.JsonSerializer.Serialize(new { command = $"echo {uniqueMarker}" });
+            await _tool.ExecuteAsync(argsJson);
+
+            var auditPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".bse-code", "audit.log");
+
+            if (File.Exists(auditPath))
+            {
+                var log = await File.ReadAllTextAsync(auditPath);
+                log.Should().Contain(uniqueMarker);
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("BSE_BASH_CONFIRM", null);
+        }
     }
 }

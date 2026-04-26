@@ -6,6 +6,46 @@ public sealed class BashTool : IToolHandler
     /// <summary>Default timeout for shell commands (30 seconds).</summary>
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 
+    // ── Security: blocklist / allowlist ──────────────────────────────────────
+
+    internal static readonly string[] Blocklist =
+    [
+        "rm -rf /", "rm -rf ~", "rm -rf *",
+        "format c:", "format c:/", "mkfs",
+        "dd if=", ":(){:|:&};:",
+        "del /f /s /q c:\\"
+    ];
+
+    internal static readonly string[] Allowlist =
+    [
+        "echo ", "cat ", "ls", "dir", "git status", "git log",
+        "git diff", "git branch", "git show", "pwd", "type ",
+        "dotnet build", "dotnet test", "dotnet run", "dotnet format",
+        "grep ", "find ", "where ", "which "
+    ];
+
+    private static readonly string AuditLogPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        ".bse-code", "audit.log");
+
+    internal static bool IsBlocked(string cmd) =>
+        Blocklist.Any(b => cmd.Contains(b, StringComparison.OrdinalIgnoreCase));
+
+    internal static bool IsAllowed(string cmd) =>
+        Allowlist.Any(a => cmd.StartsWith(a, StringComparison.OrdinalIgnoreCase)
+                        || cmd.Equals(a.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    private static void AppendAuditLog(string command, int exitCode)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(AuditLogPath)!);
+            File.AppendAllText(AuditLogPath,
+                $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} | exit:{exitCode} | {command}{Environment.NewLine}");
+        }
+        catch { /* best-effort */ }
+    }
+
     public string Name => "Bash";
     public string Description => "Execute a shell command";
     public object ParameterSchema => new
@@ -33,7 +73,30 @@ public sealed class BashTool : IToolHandler
 
         args.TryGetValue("stdin", out var stdinInput);
 
-        return Task.FromResult(RunShell(command, timeout, stdinInput));
+        // ── Security checks ───────────────────────────────────────────────────
+        if (IsBlocked(command))
+            return Task.FromResult($"ERROR: Command blocked for safety: '{command}'");
+
+        var skipConfirm = Environment.GetEnvironmentVariable("BSE_BASH_CONFIRM")
+                              ?.Equals("off", StringComparison.OrdinalIgnoreCase) == true;
+
+        if (!IsAllowed(command) && !skipConfirm)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write($"  ⚠️  Allow command? [y/N]: {command}\n  > ");
+            Console.ResetColor();
+            var answer = Console.ReadLine()?.Trim();
+            if (!string.Equals(answer, "y", StringComparison.OrdinalIgnoreCase))
+                return Task.FromResult("ERROR: Command denied by user.");
+        }
+
+        var result = RunShell(command, timeout, stdinInput);
+
+        // Determine exit code from result for audit log
+        var exitCode = result.StartsWith("ERROR:") ? -1 : 0;
+        AppendAuditLog(command, exitCode);
+
+        return Task.FromResult(result);
     }
 
     /// <summary>
