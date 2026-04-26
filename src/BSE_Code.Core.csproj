@@ -21,6 +21,10 @@
     <PackageReference Include="OpenAI" Version="2.10.0" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.*" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- Program.cs uses top-level statements and belongs to the Exe project only -->
     <Compile Remove="Program.cs" />

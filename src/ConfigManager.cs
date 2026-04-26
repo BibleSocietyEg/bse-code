@@ -32,8 +32,16 @@ public class AppConfig
     [JsonPropertyName("provider")]
     public string Provider { get; set; } = "OpenRouter";
 
-    /// <summary>API key for authentication (not required for local providers).</summary>
-    [JsonPropertyName("api_key")]
+    /// <summary>Encrypted API key (stored on disk). Never contains plaintext.</summary>
+    [JsonPropertyName("api_key_encrypted")]
+    public string ApiKeyEncrypted { get; set; } = "";
+
+    /// <summary>Config version: 1 = legacy plaintext api_key, 2 = encrypted.</summary>
+    [JsonPropertyName("config_version")]
+    public int ConfigVersion { get; set; } = 1;
+
+    /// <summary>API key for authentication (runtime only — never serialized).</summary>
+    [JsonIgnore]
     public string ApiKey { get; set; } = "";
 
     /// <summary>Model identifier (e.g. "gpt-4o", "llama3", "google/gemini-2.5-pro-exp-03-25:free").</summary>
@@ -582,6 +590,11 @@ public static class ConfigManager
     private static void Save(AppConfig config)
     {
         Directory.CreateDirectory(ConfigDir);
+        if (!string.IsNullOrEmpty(config.ApiKey))
+        {
+            config.ApiKeyEncrypted = EncryptApiKey(config.ApiKey);
+            config.ConfigVersion = 2;
+        }
         File.WriteAllText(ConfigFile, JsonSerializer.Serialize(config, JsonOpts));
     }
 
@@ -601,7 +614,113 @@ public static class ConfigManager
     private static AppConfig Load()
     {
         var json = File.ReadAllText(ConfigFile);
-        return JsonSerializer.Deserialize<AppConfig>(json) ?? new AppConfig();
+        var config = JsonSerializer.Deserialize<AppConfig>(json) ?? new AppConfig();
+
+        if (config.ConfigVersion >= 2)
+        {
+            // Encrypted storage
+            if (!string.IsNullOrEmpty(config.ApiKeyEncrypted))
+            {
+                try
+                {
+                    config.ApiKey = DecryptApiKey(config.ApiKeyEncrypted);
+                }
+                catch
+                {
+                    UI.Warn("⚠️  Failed to decrypt API key. Please re-run setup: bse-code --config");
+                    config.ApiKey = "";
+                }
+            }
+        }
+        else
+        {
+            // Legacy v1: read api_key field directly via secondary deserialization
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("api_key", out var legacyKey))
+                    config.ApiKey = legacyKey.GetString() ?? "";
+            }
+            catch { /* ignore */ }
+        }
+
+        return config;
+    }
+
+    // ── Encryption helpers ────────────────────────────────────────────────────
+
+    private static string EncryptApiKey(string plaintext)
+    {
+        if (OperatingSystem.IsWindows())
+            return EncryptWindows(plaintext);
+        return EncryptAesGcm(plaintext);
+    }
+
+    private static string DecryptApiKey(string ciphertext)
+    {
+        if (OperatingSystem.IsWindows())
+            return DecryptWindows(ciphertext);
+        return DecryptAesGcm(ciphertext);
+    }
+
+    // Windows: DPAPI
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static string EncryptWindows(string plaintext)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(plaintext);
+        var encrypted = System.Security.Cryptography.ProtectedData.Protect(
+            bytes, null, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+        return Convert.ToBase64String(encrypted);
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static string DecryptWindows(string ciphertext)
+    {
+        var bytes = Convert.FromBase64String(ciphertext);
+        var decrypted = System.Security.Cryptography.ProtectedData.Unprotect(
+            bytes, null, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+        return System.Text.Encoding.UTF8.GetString(decrypted);
+    }
+
+    // macOS/Linux: AES-256-GCM
+    private static byte[] DeriveKey()
+    {
+        var machineSecret = System.Text.Encoding.UTF8.GetBytes(
+            Environment.MachineName + Environment.UserName);
+        return System.Security.Cryptography.SHA256.HashData(machineSecret);
+    }
+
+    private static string EncryptAesGcm(string plaintext)
+    {
+        var key = DeriveKey();
+        var nonce = new byte[System.Security.Cryptography.AesGcm.NonceByteSizes.MaxSize];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(nonce);
+        var plaintextBytes = System.Text.Encoding.UTF8.GetBytes(plaintext);
+        var ciphertext = new byte[plaintextBytes.Length];
+        var tag = new byte[System.Security.Cryptography.AesGcm.TagByteSizes.MaxSize];
+        using var aes = new System.Security.Cryptography.AesGcm(key, tag.Length);
+        aes.Encrypt(nonce, plaintextBytes, ciphertext, tag);
+        // Format: nonce(12) + tag(16) + ciphertext
+        var result = new byte[nonce.Length + tag.Length + ciphertext.Length];
+        nonce.CopyTo(result, 0);
+        tag.CopyTo(result, nonce.Length);
+        ciphertext.CopyTo(result, nonce.Length + tag.Length);
+        return Convert.ToBase64String(result);
+    }
+
+    private static string DecryptAesGcm(string ciphertextBase64)
+    {
+        var key = DeriveKey();
+        var data = Convert.FromBase64String(ciphertextBase64);
+        int nonceSize = System.Security.Cryptography.AesGcm.NonceByteSizes.MaxSize;
+        int tagSize = System.Security.Cryptography.AesGcm.TagByteSizes.MaxSize;
+        var nonce = data[..nonceSize];
+        var tag = data[nonceSize..(nonceSize + tagSize)];
+        var ciphertext = data[(nonceSize + tagSize)..];
+        var plaintext = new byte[ciphertext.Length];
+        using var aes = new System.Security.Cryptography.AesGcm(key, tagSize);
+        aes.Decrypt(nonce, ciphertext, tag, plaintext);
+        return System.Text.Encoding.UTF8.GetString(plaintext);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -43,10 +43,13 @@ public class ConfigManagerTests : IDisposable
     [Fact]
     public void AppConfig_RoundTrip_PreservesAllFields()
     {
+        // ApiKey is [JsonIgnore] — it is not serialized/deserialized directly.
+        // Encrypted storage is tested in ConfigManagerEncryptionTests.
         var original = new AppConfig
         {
             Provider = "OpenAI",
-            ApiKey = "sk-test-key",
+            ApiKeyEncrypted = "encrypted-placeholder",
+            ConfigVersion = 2,
             Model = "gpt-4o",
             BaseUrl = "https://api.openai.com/v1",
             Theme = "dracula"
@@ -56,7 +59,8 @@ public class ConfigManagerTests : IDisposable
         var restored = JsonSerializer.Deserialize<AppConfig>(json)!;
 
         restored.Provider.Should().Be(original.Provider);
-        restored.ApiKey.Should().Be(original.ApiKey);
+        restored.ApiKeyEncrypted.Should().Be(original.ApiKeyEncrypted);
+        restored.ConfigVersion.Should().Be(original.ConfigVersion);
         restored.Model.Should().Be(original.Model);
         restored.BaseUrl.Should().Be(original.BaseUrl);
         restored.Theme.Should().Be(original.Theme);
@@ -65,12 +69,14 @@ public class ConfigManagerTests : IDisposable
     [Fact]
     public void AppConfig_JsonPropertyNames_UseSnakeCase()
     {
-        var config = new AppConfig { Provider = "Ollama", ApiKey = "local", Model = "llama3" };
+        var config = new AppConfig { Provider = "Ollama", ApiKeyEncrypted = "enc", Model = "llama3" };
         var json = JsonSerializer.Serialize(config);
 
         json.Should().Contain("\"provider\"");
-        json.Should().Contain("\"api_key\"");
+        json.Should().Contain("\"api_key_encrypted\"");
         json.Should().Contain("\"base_url\"");
+        // ApiKey is [JsonIgnore] — must NOT appear in serialized JSON
+        json.Should().NotContain("\"api_key\":");
     }
 
     [Fact]
