@@ -49,7 +49,7 @@ public sealed class ToolRegistry
         _handlers.ContainsKey(toolName);
 
     /// <summary>Creates a registry pre-loaded with all built-in tools.</summary>
-    public static ToolRegistry CreateDefault() => new(
+    public static ToolRegistry CreateDefault(AppConfig? config = null) => new(
     [
         new ReadFileTool(),
         new WriteFileTool(),
@@ -58,5 +58,7 @@ public sealed class ToolRegistry
         new ListDirTool(),
         new GlobTool(),
         new GrepTool(),
+        new SemanticSearchTool(config ?? new AppConfig()),
+        // DiagnosticTool will be added in Task 6
     ]);
 }

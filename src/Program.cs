@@ -36,7 +36,7 @@ MemoryManager.EnsureUserMemory(); MemoryManager.Reload();
 SkillManager.EnsureDirectories(); SkillManager.Reload();
 McpManager.EnsureExampleConfig(); await McpManager.LoadAsync();
 
-var toolRegistry = ToolRegistry.CreateDefault();
+var toolRegistry = ToolRegistry.CreateDefault(config);
 
 ChatClient BuildClient() => new ChatClient(
     model: config.Model, credential: new ApiKeyCredential(config.ApiKey),
