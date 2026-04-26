@@ -59,6 +59,6 @@ public sealed class ToolRegistry
         new GlobTool(),
         new GrepTool(),
         new SemanticSearchTool(config ?? new AppConfig()),
-        // DiagnosticTool will be added in Task 6
+        new DiagnosticTool(),
     ]);
 }
