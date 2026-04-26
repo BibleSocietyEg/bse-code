@@ -337,16 +337,52 @@ public sealed class SlashCommandHandler
 
     // ── /compact ──────────────────────────────────────────────────────────────
 
+    private const int DefaultTokenBudget = 80_000;
+
+    internal static int EstimateTokens(IEnumerable<ChatMessage> messages)
+        => messages.Sum(m => GetMessageText(m).Length) / 4;
+
+    private static string GetMessageText(ChatMessage m) => m switch
+    {
+        UserChatMessage u      => string.Concat(u.Content.Select(p => p.Text)),
+        AssistantChatMessage a => string.Concat(a.Content.Select(p => p.Text)),
+        SystemChatMessage s    => string.Concat(s.Content.Select(p => p.Text)),
+        _                      => ""
+    };
+
     private async Task HandleCompactAsync(
         string arg, List<ChatMessage> messages, ChatCompletionOptions opts)
     {
-        var userCount = messages.Count(m => m is UserChatMessage);
-        if (userCount < 3)
+        var tokensBefore = EstimateTokens(messages);
+        UI.Print($"  📊 Estimated tokens: {tokensBefore:N0}", UI.Muted);
+
+        if (tokensBefore < DefaultTokenBudget)
         {
-            UI.Print("  Not enough history to compact yet 🤏", UI.Muted);
+            UI.Print($"  ✅ Below budget ({DefaultTokenBudget:N0}) — no compaction needed.", UI.Muted);
             return;
         }
 
+        // Separate system messages from non-system messages
+        var systemMessages = messages.Where(m => m is SystemChatMessage).ToList();
+        var nonSystem = messages.Where(m => m is not SystemChatMessage).ToList();
+
+        // Always keep the last 8 non-system messages (4 user/assistant pairs)
+        var protectedMessages = nonSystem.TakeLast(8).ToList();
+        var prunable = nonSystem.SkipLast(8).ToList();
+
+        // Prune oldest non-system messages until below budget
+        while (prunable.Count > 0 &&
+               EstimateTokens(systemMessages.Concat(prunable).Concat(protectedMessages)) > DefaultTokenBudget)
+        {
+            prunable.RemoveAt(0);
+        }
+
+        messages.Clear();
+        messages.AddRange(systemMessages);
+        messages.AddRange(prunable);
+        messages.AddRange(protectedMessages);
+
+        // Run LLM summarization
         var prompt = string.IsNullOrEmpty(arg)
             ? "Summarize our conversation so far into a concise context summary. Keep key decisions, code changes, and important context."
             : arg;
@@ -356,7 +392,9 @@ public sealed class SlashCommandHandler
         var summary = messages.LastOrDefault(m => m is AssistantChatMessage);
         messages.RemoveAll(m => m is not SystemChatMessage);
         if (summary is not null) messages.Add(summary);
-        UI.Success("🗜️  Conversation compacted — nice and tidy!");
+
+        var tokensAfter = EstimateTokens(messages);
+        UI.Success($"🗜️  Compacted: {tokensBefore:N0} → {tokensAfter:N0} tokens");
     }
 
     // ── /tools ────────────────────────────────────────────────────────────────
