@@ -703,8 +703,10 @@ public static class ConfigManager
             {
                 var chmod = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                 {
-                    FileName = "chmod", Arguments = $"600 \"{KeyFile}\"",
-                    UseShellExecute = false, CreateNoWindow = true
+                    FileName = "chmod",
+                    Arguments = $"600 \"{KeyFile}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
                 });
                 chmod?.WaitForExit(2000);
             }

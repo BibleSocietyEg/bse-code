@@ -53,7 +53,11 @@ public sealed class DiagnosticTool : IToolHandler
         {
             diagnostics.Add(new DiagnosticMessage
             {
-                File = "", Line = 0, Column = 0, Severity = "error", Code = "",
+                File = "",
+                Line = 0,
+                Column = 0,
+                Severity = "error",
+                Code = "",
                 Message = rawOutput.Length > 2000 ? rawOutput[..2000] + "..." : rawOutput
             });
         }
