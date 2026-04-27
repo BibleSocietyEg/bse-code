@@ -2,7 +2,7 @@ using System.Text;
 using OpenAI.Chat;
 
 /// <summary>
-/// Handles all <c>/command</c> inputs entered in the REPL.
+
 /// Extracted from Program.cs to satisfy the Single Responsibility Principle —
 /// the REPL loop should not also own command dispatch logic.
 /// </summary>
@@ -337,16 +337,62 @@ public sealed class SlashCommandHandler
 
     // ── /compact ──────────────────────────────────────────────────────────────
 
+    private const int DefaultTokenBudget = 80_000;
+
+    internal static int EstimateTokens(IEnumerable<ChatMessage> messages)
+        => messages.Sum(m => GetMessageText(m).Length) / 4;
+
+    private static string GetMessageText(ChatMessage m) => m switch
+    {
+        UserChatMessage u => string.Concat(u.Content.Select(p => p.Text)),
+        AssistantChatMessage a => string.Concat(a.Content.Select(p => p.Text)) +
+            (a.ToolCalls.Count > 0 ? string.Concat(a.ToolCalls.Select(tc => tc.FunctionName + tc.FunctionArguments.ToString())) : ""),
+        SystemChatMessage s => string.Concat(s.Content.Select(p => p.Text)),
+        ToolChatMessage t => string.Concat(t.Content.Select(p => p.Text)),
+        _ => ""
+    };
+
+    /// <summary>
+    /// Prunes the message list to fit within the token budget where possible.
+    /// Always preserves all SystemChatMessages and the last 8 non-system messages (4 pairs)
+    /// regardless of their size — if system + protected messages alone exceed the budget,
+    /// the returned list will still exceed the budget (protected messages are never dropped).
+    /// Returns the pruned list (does not modify the input).
+    /// </summary>
+    internal static List<ChatMessage> PruneToBudget(
+        IReadOnlyList<ChatMessage> messages, int budget = DefaultTokenBudget)
+    {
+        var systemMessages = messages.Where(m => m is SystemChatMessage).ToList();
+        var nonSystem = messages.Where(m => m is not SystemChatMessage).ToList();
+        var protectedMessages = nonSystem.TakeLast(8).ToList();
+        var prunable = nonSystem.SkipLast(8).ToList();
+
+        while (prunable.Count > 0 &&
+               EstimateTokens(systemMessages.Concat(prunable).Concat(protectedMessages)) > budget)
+        {
+            prunable.RemoveAt(0);
+        }
+
+        return [.. systemMessages, .. prunable, .. protectedMessages];
+    }
+
     private async Task HandleCompactAsync(
         string arg, List<ChatMessage> messages, ChatCompletionOptions opts)
     {
-        var userCount = messages.Count(m => m is UserChatMessage);
-        if (userCount < 3)
+        var tokensBefore = EstimateTokens(messages);
+        UI.Print($"  📊 Estimated tokens: {tokensBefore:N0}", UI.Muted);
+
+        if (tokensBefore < DefaultTokenBudget)
         {
-            UI.Print("  Not enough history to compact yet 🤏", UI.Muted);
+            UI.Print($"  ✅ Below budget ({DefaultTokenBudget:N0}) — no compaction needed.", UI.Muted);
             return;
         }
 
+        var pruned = PruneToBudget(messages);
+        messages.Clear();
+        messages.AddRange(pruned);
+
+        // Run LLM summarization
         var prompt = string.IsNullOrEmpty(arg)
             ? "Summarize our conversation so far into a concise context summary. Keep key decisions, code changes, and important context."
             : arg;
@@ -356,7 +402,9 @@ public sealed class SlashCommandHandler
         var summary = messages.LastOrDefault(m => m is AssistantChatMessage);
         messages.RemoveAll(m => m is not SystemChatMessage);
         if (summary is not null) messages.Add(summary);
-        UI.Success("🗜️  Conversation compacted — nice and tidy!");
+
+        var tokensAfter = EstimateTokens(messages);
+        UI.Success($"🗜️  Compacted: {tokensBefore:N0} → {tokensAfter:N0} tokens");
     }
 
     // ── /tools ────────────────────────────────────────────────────────────────

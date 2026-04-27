@@ -113,3 +113,206 @@ chore: bump OpenAI SDK to 2.11.0
 1. Create `src/Tools/YourTool.cs` implementing `IToolHandler`
 2. Register it in `ToolRegistry.CreateDefault()`
 3. Add tests in `tests/Tools/YourToolTests.cs`
+
+---
+
+## Adding a New Tool
+
+Implement the `IToolHandler` interface in a new file under `src/Tools/`:
+
+```csharp
+/// <summary>Does something useful for the AI.</summary>
+public sealed class MyTool : IToolHandler
+{
+    // The name the LLM uses to call this tool. Must be alphanumeric + underscores.
+    public string Name => "my_tool";
+
+    // Description shown to the LLM in the system prompt.
+    public string Description => "Does something useful";
+
+    // JSON Schema describing the tool's parameters.
+    public object ParameterSchema => new
+    {
+        type = "object",
+        required = new[] { "input" },
+        properties = new
+        {
+            input = new { type = "string", description = "The input to process" },
+            optional_flag = new { type = "boolean", description = "Optional flag (default: false)" }
+        }
+    };
+
+    public Task<string> ExecuteAsync(string argsJson)
+    {
+        // Use ArgumentParser to parse the JSON arguments
+        var args = ArgumentParser.ParseStringMap(argsJson);
+
+        if (!args.TryGetValue("input", out var input) || string.IsNullOrWhiteSpace(input))
+            throw new ArgumentException("'input' is required.");
+
+        // Return an error string (never throw) for expected failure cases
+        if (input.Length > 1000)
+            return Task.FromResult("ERROR: Input too long (max 1000 chars)");
+
+        var result = $"Processed: {input}";
+        return Task.FromResult(result);
+    }
+}
+```
+
+Then register it in `ToolRegistry.CreateDefault()` in `src/Tools/ToolRegistry.cs`:
+
+```csharp
+public static ToolRegistry CreateDefault(AppConfig? config = null) => new(
+[
+    // ... existing tools ...
+    new MyTool(),
+]);
+```
+
+Add tests in `tests/Tools/MyToolTests.cs` (see [Testing New Tools](#testing-new-tools) below).
+
+---
+
+## Tool Naming Conventions
+
+- `IToolHandler.Name` must be a valid function name: alphanumeric characters and underscores only (no spaces, hyphens, or special characters).
+- `ToolRegistry` dispatches by name case-insensitively.
+- MCP server tools are automatically named using the scheme `mcp__serverName__toolName` (e.g., `mcp__filesystem__read_file`). Do not use this prefix for built-in tools.
+- Keep names short and descriptive: `read_file`, `edit_file`, `semantic_search`, `diagnostic`.
+
+---
+
+## Adding a New LLM Provider
+
+1. Add an entry to the `LlmProvider` enum in `src/ConfigManager.cs`:
+
+```csharp
+public enum LlmProvider
+{
+    // ... existing entries ...
+    MyProvider
+}
+```
+
+2. Add a `ProviderDef` entry to the `Providers` array:
+
+```csharp
+new(9, LlmProvider.MyProvider, "My Provider", "Description of the provider",
+    needsApiKey: true,
+    defaultBaseUrl: "https://api.myprovider.com/v1",
+    defaultModel: "my-model-id",
+    apiKeyUrl: "https://myprovider.com/api-keys"),
+```
+
+Fields:
+- `Number`: next sequential integer (used in the setup wizard menu)
+- `NeedsApiKey`: `false` for local providers (Ollama, LM Studio)
+- `DefaultBaseUrl`: the OpenAI-compatible API base URL
+- `DefaultModel`: pre-selected model in the wizard
+- `ApiKeyUrl`: link shown to the user when prompting for an API key
+
+3. Add a `FallbackModels` entry for the model picker:
+
+```csharp
+[LlmProvider.MyProvider] =
+[
+    ("My Models", [
+        new("my-model-id", "My Model Name", false),
+    ]),
+],
+```
+
+---
+
+## Configuring MCP Servers
+
+Edit `~/.bse-code/mcp.json` to add MCP servers. Each server entry specifies a command to run:
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem@latest", "/path/to/allow"],
+      "env": {},
+      "disabled": false
+    },
+    "git": {
+      "command": "uvx",
+      "args": ["mcp-server-git", "--repository", "/path/to/repo"],
+      "env": {
+        "GIT_AUTHOR_NAME": "BSE-Code"
+      },
+      "disabled": false
+    }
+  }
+}
+```
+
+Field reference:
+- `command`: the executable to run (e.g., `npx`, `uvx`, `python`, `node`)
+- `args`: command-line arguments passed to the executable
+- `env`: environment variables injected into the server process (use for secrets/tokens)
+- `disabled`: set to `true` to temporarily disable a server without removing it
+
+Once configured, tools from MCP servers appear as `mcp__serverName__toolName` in the tool list. Use `/mcp reload` in the REPL to pick up config changes without restarting.
+
+---
+
+## Testing New Tools
+
+Create `tests/Tools/MyToolTests.cs`:
+
+```csharp
+using FluentAssertions;
+using FsCheck;
+using FsCheck.Xunit;
+
+namespace BSE_Code.Tests.Tools;
+
+public class MyToolTests
+{
+    private readonly MyTool _tool = new();
+
+    [Fact]
+    public async Task ExecuteAsync_ValidInput_ReturnsResult()
+    {
+        var result = await _tool.ExecuteAsync("""{"input": "hello"}""");
+        result.Should().Contain("hello");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_MissingInput_ThrowsArgumentException()
+    {
+        var act = async () => await _tool.ExecuteAsync("{}");
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*input*");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_TimeoutScenario_ReturnsErrorString()
+    {
+        // For tools that call external processes, test timeout behavior
+        // by using a very short timeout and a slow command.
+        // Tools should return an error string, never throw.
+        var result = await _tool.ExecuteAsync("""{"input": "test"}""");
+        result.Should().NotBeNull();
+    }
+
+    // Optional: add a property test for invariants
+    [Property(MaxTest = 100)]
+    public bool MyTool_OutputAlwaysNonNull(NonEmptyString input)
+    {
+        var argsJson = System.Text.Json.JsonSerializer.Serialize(new { input = input.Get });
+        var result = _tool.ExecuteAsync(argsJson).GetAwaiter().GetResult();
+        return result is not null;
+    }
+}
+```
+
+For tools requiring external binaries, use `[Fact(Skip = "requires external binary")]` to skip gracefully in CI:
+
+```csharp
+[Fact(Skip = "requires npx")]
+public async Task ExecuteAsync_WithRealServer_ReturnsContent() { ... }
+```
