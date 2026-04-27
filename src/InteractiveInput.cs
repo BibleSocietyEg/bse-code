@@ -159,6 +159,10 @@ public static class InteractiveInput
                 {
                     buf.Remove(cursor - 1, 1);
                     cursor--;
+                    // Move the terminal cursor left by one before redrawing,
+                    // so RedrawFromCursor writes from the correct screen position.
+                    if (Console.CursorLeft > 0)
+                        Console.CursorLeft--;
                     RedrawFromCursor(buf, cursor);
                 }
                 continue;
@@ -569,13 +573,17 @@ public static class InteractiveInput
 
     private static void RedrawFromCursor(StringBuilder buf, int fromPos)
     {
-        // fromPos is the position BEFORE the change; cursor is already updated in buf.
-        // We need to rewrite from fromPos to end of buf, then erase any leftover char.
+        // fromPos is the logical cursor position after the edit.
+        // The terminal cursor is already at the correct column (caller moved it).
+        // Write the suffix from fromPos to end of buf, then a trailing space to
+        // erase any character that was deleted, then reposition the terminal cursor
+        // back to fromPos.
         var suffix = buf.ToString()[fromPos..];
         int startLeft = Console.CursorLeft;
         Console.Write(suffix + " "); // trailing space erases a deleted character
-        // Move cursor back to logical position (end of suffix, before the trailing space)
+        // Reposition terminal cursor back to the logical cursor column.
         int targetLeft = startLeft + suffix.Length;
+        // Clamp to valid range to avoid ArgumentOutOfRangeException on narrow terminals.
         Console.CursorLeft = Math.Max(0, Math.Min(targetLeft, Console.BufferWidth - 1));
     }
 

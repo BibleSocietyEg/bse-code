@@ -89,21 +89,88 @@ public sealed class Spinner : IDisposable
         if (_running) return;
         _stopped = false;
         _running = true;
-        Console.CursorVisible = false;
+        try { Console.CursorVisible = false; } catch { /* non-interactive environment */ }
 
         _thread = new Thread(() =>
         {
             int i = 0;
             while (_running)
             {
-                Console.ForegroundColor = UI.Accent;
-                Console.Write($"\r  {Frames[i % Frames.Length]}  {_label}...");
-                Console.ResetColor();
+                try
+                {
+                    Console.ForegroundColor = UI.Accent;
+                    Console.Write($"\r  {Frames[i % Frames.Length]}  {_label}...");
+                    Console.ResetColor();
+                }
+                catch { break; }
                 Thread.Sleep(80);
                 i++;
             }
-            Console.Write($"\r{new string(' ', _label.Length + 12)}\r");
-            Console.CursorVisible = true;
+            try
+            {
+                Console.Write($"\r{new string(' ', _label.Length + 12)}\r");
+                Console.CursorVisible = true;
+            }
+            catch { /* non-interactive environment */ }
+        })
+        { IsBackground = true };
+
+        _thread.Start();
+    }
+
+    public void Stop()
+    {
+        if (_stopped) return;
+        _stopped = true;
+        _running = false;
+        _thread?.Join(500);
+    }
+
+    public void Dispose() => Stop();
+}
+
+/// <summary>
+/// Inline spinner that animates on the current cursor position while a tool is executing.
+/// Call Stop() (or Dispose()) to clear the spinner frames before writing the result.
+/// The spinner uses the theme's ToolColor so it respects the active color theme.
+/// Safe to use in non-interactive environments (CI, redirected output) — console
+/// operations that require a real terminal are guarded with try/catch.
+/// </summary>
+public sealed class ToolSpinner : IDisposable
+{
+    private static readonly string[] Frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+    private Thread? _thread;
+    private volatile bool _running;
+    private bool _stopped;
+
+    public ToolSpinner()
+    {
+        _running = true;
+        try { Console.CursorVisible = false; } catch { /* non-interactive environment */ }
+
+        _thread = new Thread(() =>
+        {
+            int i = 0;
+            while (_running)
+            {
+                try
+                {
+                    Console.ForegroundColor = UI.ToolColor;
+                    Console.Write($"\b{Frames[i % Frames.Length]}");
+                    Console.ResetColor();
+                }
+                catch { /* non-interactive environment — stop gracefully */ break; }
+                Thread.Sleep(80);
+                i++;
+            }
+            // Erase the spinner frame so the result (✓/✗) can be written cleanly
+            try
+            {
+                Console.Write("\b ");
+                Console.CursorVisible = true;
+            }
+            catch { /* non-interactive environment */ }
         })
         { IsBackground = true };
 
