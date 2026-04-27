@@ -26,7 +26,7 @@ public sealed class SemanticSearchTool : IToolHandler
         properties = new
         {
             query = new { type = "string", description = "Natural language search query" },
-            path  = new { type = "string", description = "Restrict search to this path (optional)" },
+            path = new { type = "string", description = "Restrict search to this path (optional)" },
             top_n = new { type = "integer", description = "Number of results to return (default: 10)" }
         }
     };

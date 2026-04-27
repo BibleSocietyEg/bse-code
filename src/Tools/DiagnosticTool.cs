@@ -18,7 +18,7 @@ public sealed class DiagnosticTool : IToolHandler
         required = new[] { "command" },
         properties = new
         {
-            command         = new { type = "string", description = "The build or lint command to run" },
+            command = new { type = "string", description = "The build or lint command to run" },
             timeout_seconds = new { type = "integer", description = "Timeout in seconds (default: 60)" }
         }
     };
@@ -71,12 +71,12 @@ public sealed class DiagnosticTool : IToolHandler
             if (!m.Success) continue;
             results.Add(new DiagnosticMessage
             {
-                File     = m.Groups[1].Value.Trim(),
-                Line     = int.TryParse(m.Groups[2].Value, out var l) ? l : 0,
-                Column   = int.TryParse(m.Groups[3].Value, out var c) ? c : 0,
+                File = m.Groups[1].Value.Trim(),
+                Line = int.TryParse(m.Groups[2].Value, out var l) ? l : 0,
+                Column = int.TryParse(m.Groups[3].Value, out var c) ? c : 0,
                 Severity = m.Groups[4].Value.ToLowerInvariant(),
-                Code     = m.Groups[5].Value,
-                Message  = m.Groups[6].Value.Trim()
+                Code = m.Groups[5].Value,
+                Message = m.Groups[6].Value.Trim()
             });
         }
         return results;
@@ -101,12 +101,12 @@ public sealed class DiagnosticTool : IToolHandler
                 {
                     results.Add(new DiagnosticMessage
                     {
-                        File     = filePath,
-                        Line     = msg.TryGetProperty("line", out var ln) ? ln.GetInt32() : 0,
-                        Column   = msg.TryGetProperty("column", out var col) ? col.GetInt32() : 0,
+                        File = filePath,
+                        Line = msg.TryGetProperty("line", out var ln) ? ln.GetInt32() : 0,
+                        Column = msg.TryGetProperty("column", out var col) ? col.GetInt32() : 0,
                         Severity = msg.TryGetProperty("severity", out var sev) ? (sev.GetInt32() == 2 ? "error" : "warning") : "warning",
-                        Code     = msg.TryGetProperty("ruleId", out var rule) ? rule.GetString() ?? "" : "",
-                        Message  = msg.TryGetProperty("message", out var m) ? m.GetString() ?? "" : ""
+                        Code = msg.TryGetProperty("ruleId", out var rule) ? rule.GetString() ?? "" : "",
+                        Message = msg.TryGetProperty("message", out var m) ? m.GetString() ?? "" : ""
                     });
                 }
             }
@@ -119,17 +119,17 @@ public sealed class DiagnosticTool : IToolHandler
 /// <summary>A single diagnostic message from a build or lint run.</summary>
 public sealed class DiagnosticMessage
 {
-    [JsonPropertyName("file")]     public string File     { get; init; } = "";
-    [JsonPropertyName("line")]     public int    Line     { get; init; }
-    [JsonPropertyName("column")]   public int    Column   { get; init; }
+    [JsonPropertyName("file")] public string File { get; init; } = "";
+    [JsonPropertyName("line")] public int Line { get; init; }
+    [JsonPropertyName("column")] public int Column { get; init; }
     [JsonPropertyName("severity")] public string Severity { get; init; } = "error";
-    [JsonPropertyName("code")]     public string Code     { get; init; } = "";
-    [JsonPropertyName("message")]  public string Message  { get; init; } = "";
+    [JsonPropertyName("code")] public string Code { get; init; } = "";
+    [JsonPropertyName("message")] public string Message { get; init; } = "";
 }
 
 /// <summary>The structured result of a diagnostic tool run.</summary>
 public sealed class DiagnosticResult
 {
-    [JsonPropertyName("exit_code")]   public int                    ExitCode    { get; init; }
+    [JsonPropertyName("exit_code")] public int ExitCode { get; init; }
     [JsonPropertyName("diagnostics")] public List<DiagnosticMessage> Diagnostics { get; init; } = [];
 }

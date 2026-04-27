@@ -344,10 +344,10 @@ public sealed class SlashCommandHandler
 
     private static string GetMessageText(ChatMessage m) => m switch
     {
-        UserChatMessage u      => string.Concat(u.Content.Select(p => p.Text)),
+        UserChatMessage u => string.Concat(u.Content.Select(p => p.Text)),
         AssistantChatMessage a => string.Concat(a.Content.Select(p => p.Text)),
-        SystemChatMessage s    => string.Concat(s.Content.Select(p => p.Text)),
-        _                      => ""
+        SystemChatMessage s => string.Concat(s.Content.Select(p => p.Text)),
+        _ => ""
     };
 
     private async Task HandleCompactAsync(

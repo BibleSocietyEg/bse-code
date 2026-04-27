@@ -99,7 +99,7 @@ public class DiagnosticToolTests
         // MSBuild code must match \w+ (word chars only, no spaces)
         var cleanCode = System.Text.RegularExpressions.Regex.Replace(code.Get, @"\W", "");
         // Message: replace newlines with spaces, trim (ParseMsBuild trims group 6)
-        var cleanMsg  = System.Text.RegularExpressions.Regex.Replace(message.Get, @"[\r\n]", " ").Trim();
+        var cleanMsg = System.Text.RegularExpressions.Regex.Replace(message.Get, @"[\r\n]", " ").Trim();
 
         if (string.IsNullOrWhiteSpace(cleanFile) || string.IsNullOrWhiteSpace(cleanCode) || string.IsNullOrWhiteSpace(cleanMsg))
             return true; // skip degenerate inputs
