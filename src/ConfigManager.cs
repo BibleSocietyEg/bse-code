@@ -599,6 +599,12 @@ public static class ConfigManager
             config.ApiKeyEncrypted = EncryptApiKey(config.ApiKey);
             config.ConfigVersion = 2;
         }
+        else
+        {
+            // Clear stale encrypted key when ApiKey is empty
+            config.ApiKeyEncrypted = "";
+            config.ConfigVersion = 2;
+        }
         File.WriteAllText(ConfigFile, JsonSerializer.Serialize(config, JsonOpts));
     }
 

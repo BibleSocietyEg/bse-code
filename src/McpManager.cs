@@ -252,6 +252,25 @@ public static class McpManager
             throw new Exception($"MCP server '{serverName}' did not respond to initialize");
         }
 
+        // Parse and check for error in initialize response
+        try
+        {
+            using var initDoc = JsonDocument.Parse(initLine);
+            if (initDoc.RootElement.TryGetProperty("error", out var error))
+            {
+                var errorMsg = error.TryGetProperty("message", out var msg)
+                    ? msg.GetString() ?? error.GetRawText()
+                    : error.GetRawText();
+                try { process.Kill(entireProcessTree: true); } catch { }
+                process.Dispose();
+                throw new Exception($"MCP server '{serverName}' returned error: {errorMsg}");
+            }
+        }
+        catch (JsonException)
+        {
+            // Fallback to timeout handling - invalid JSON will be caught elsewhere
+        }
+
         // Send notifications/initialized
         var initializedNotif = new { jsonrpc = "2.0", method = "notifications/initialized" };
         await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(initializedNotif));

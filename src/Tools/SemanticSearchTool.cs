@@ -14,6 +14,7 @@ public sealed class SemanticSearchTool : IToolHandler
     private static readonly List<CodeChunk> _index = [];
     private static readonly Dictionary<string, DateTime> _fileTimestamps = [];
     private static readonly SemaphoreSlim _indexLock = new(1, 1);
+    private static string _indexFingerprint = "";
 
     public SemanticSearchTool(AppConfig config) => _config = config;
 
@@ -59,7 +60,8 @@ public sealed class SemanticSearchTool : IToolHandler
         // Build/refresh index
         try
         {
-            await BuildOrRefreshIndexAsync(searchPath, embeddingClient);
+            var currentFingerprint = $"{_config.EmbeddingModel}|{_config.BaseUrl}";
+            await BuildOrRefreshIndexAsync(searchPath, embeddingClient, currentFingerprint);
         }
         catch (Exception ex)
         {
@@ -115,11 +117,20 @@ public sealed class SemanticSearchTool : IToolHandler
         return sb.ToString().TrimEnd();
     }
 
-    private static async Task BuildOrRefreshIndexAsync(string rootPath, EmbeddingClient client)
+    private static async Task BuildOrRefreshIndexAsync(string rootPath, EmbeddingClient client, string fingerprint)
     {
         await _indexLock.WaitAsync();
         try
         {
+            // Check if embedding provider/model changed
+            if (_indexFingerprint != fingerprint)
+            {
+                // Invalidate entire cache
+                _index.Clear();
+                _fileTimestamps.Clear();
+                _indexFingerprint = fingerprint;
+            }
+
             var extensions = new[] { ".cs", ".ts", ".js", ".py", ".go", ".java", ".md", ".txt" };
             var files = Directory.GetFiles(rootPath, "*.*", SearchOption.AllDirectories)
                 .Where(f => extensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
@@ -149,14 +160,40 @@ public sealed class SemanticSearchTool : IToolHandler
                 var chunks = ChunkFile(file).ToList();
                 if (chunks.Count == 0) continue;
 
-                // Generate embeddings for all chunks in this file
+                // Generate embeddings in batches to avoid provider limits
+                const int maxInputsPerRequest = 100;
+                const int maxTokensPerRequest = 8000;
                 var texts = chunks.Select(c => c.Text).ToList();
-                var embeddings = await client.GenerateEmbeddingsAsync(texts);
 
-                for (int i = 0; i < chunks.Count; i++)
+                for (int batchStart = 0; batchStart < texts.Count; batchStart += maxInputsPerRequest)
                 {
-                    chunks[i].Embedding = embeddings.Value[i].ToFloats().ToArray();
-                    _index.Add(chunks[i]);
+                    var batchSize = Math.Min(maxInputsPerRequest, texts.Count - batchStart);
+                    var batch = texts.Skip(batchStart).Take(batchSize).ToList();
+
+                    // Estimate tokens (rough: 4 chars per token)
+                    var batchTokens = batch.Sum(t => t.Length / 4);
+                    if (batchTokens > maxTokensPerRequest)
+                    {
+                        // Reduce batch size if too many tokens
+                        batchSize = Math.Max(1, batchSize * maxTokensPerRequest / batchTokens);
+                        batch = texts.Skip(batchStart).Take(batchSize).ToList();
+                    }
+
+                    try
+                    {
+                        var embeddings = await client.GenerateEmbeddingsAsync(batch);
+                        for (int i = 0; i < batchSize; i++)
+                        {
+                            var chunkIndex = batchStart + i;
+                            chunks[chunkIndex].Embedding = embeddings.Value[i].ToFloats().ToArray();
+                            _index.Add(chunks[chunkIndex]);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        UI.Warn($"⚠️  Failed to embed batch in '{file}': {ex.Message}");
+                        // Continue with next batch instead of aborting
+                    }
                 }
 
                 _fileTimestamps[file] = lastWrite;
