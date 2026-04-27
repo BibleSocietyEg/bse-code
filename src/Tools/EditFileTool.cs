@@ -31,7 +31,9 @@ public sealed class EditFileTool : IToolHandler
         if (!File.Exists(filePath))
             return $"ERROR: '{filePath}': file not found";
 
-        var content = await File.ReadAllTextAsync(filePath);
+        // Detect original encoding (preserves BOM if present)
+        var encoding = DetectEncoding(filePath);
+        var content = await File.ReadAllTextAsync(filePath, encoding);
 
         // Count occurrences
         int count = 0;
@@ -53,9 +55,26 @@ public sealed class EditFileTool : IToolHandler
         int firstIdx = content.IndexOf(oldStr, StringComparison.Ordinal);
         var newContent = content[..firstIdx] + newStr + content[(firstIdx + oldStr.Length)..];
 
-        await File.WriteAllTextAsync(filePath, newContent);
+        await File.WriteAllTextAsync(filePath, newContent, encoding);
 
-        int linesChanged = Math.Abs(newStr.Count(c => c == '\n') - oldStr.Count(c => c == '\n')) + 1;
-        return $"Edited '{filePath}': {linesChanged} line(s) changed";
+        int linesDelta = Math.Abs(newStr.Count(c => c == '\n') - oldStr.Count(c => c == '\n'));
+        return linesDelta == 0
+            ? $"Edited '{filePath}': 1 line modified"
+            : $"Edited '{filePath}': {linesDelta} line(s) added/removed";
+    }
+
+    private static System.Text.Encoding DetectEncoding(string filePath)
+    {
+        // Read the first 4 bytes to detect BOM
+        using var fs = File.OpenRead(filePath);
+        var bom = new byte[4];
+        int read = fs.Read(bom, 0, 4);
+        if (read >= 3 && bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF)
+            return new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
+        if (read >= 2 && bom[0] == 0xFF && bom[1] == 0xFE)
+            return System.Text.Encoding.Unicode; // UTF-16 LE
+        if (read >= 2 && bom[0] == 0xFE && bom[1] == 0xFF)
+            return System.Text.Encoding.BigEndianUnicode; // UTF-16 BE
+        return new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false); // UTF-8 no BOM
     }
 }

@@ -106,9 +106,10 @@ public sealed class DiagnosticTool : IToolHandler
                     results.Add(new DiagnosticMessage
                     {
                         File = filePath,
-                        Line = msg.TryGetProperty("line", out var ln) ? ln.GetInt32() : 0,
-                        Column = msg.TryGetProperty("column", out var col) ? col.GetInt32() : 0,
-                        Severity = msg.TryGetProperty("severity", out var sev) ? (sev.GetInt32() == 2 ? "error" : "warning") : "warning",
+                        Line = msg.TryGetProperty("line", out var ln) && ln.TryGetInt32(out var lnVal) ? lnVal : 0,
+                        Column = msg.TryGetProperty("column", out var col) && col.TryGetInt32(out var colVal) ? colVal : 0,
+                        Severity = msg.TryGetProperty("severity", out var sev) && sev.TryGetInt32(out var sevVal)
+                            ? (sevVal == 2 ? "error" : "warning") : "warning",
                         Code = msg.TryGetProperty("ruleId", out var rule) ? rule.GetString() ?? "" : "",
                         Message = msg.TryGetProperty("message", out var m) ? m.GetString() ?? "" : ""
                     });

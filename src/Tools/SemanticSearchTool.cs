@@ -49,7 +49,7 @@ public sealed class SemanticSearchTool : IToolHandler
             var options = new OpenAI.OpenAIClientOptions { Endpoint = new Uri(_config.BaseUrl) };
             var openAiClient = new OpenAI.OpenAIClient(
                 new System.ClientModel.ApiKeyCredential(_config.ApiKey), options);
-            embeddingClient = openAiClient.GetEmbeddingClient("text-embedding-3-small");
+            embeddingClient = openAiClient.GetEmbeddingClient(_config.EmbeddingModel);
         }
         catch (Exception ex)
         {

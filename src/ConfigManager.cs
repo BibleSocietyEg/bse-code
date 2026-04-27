@@ -60,6 +60,10 @@ public class AppConfig
     [JsonIgnore]
     public LlmProvider ProviderEnum =>
         Enum.TryParse<LlmProvider>(Provider, ignoreCase: true, out var p) ? p : LlmProvider.Custom;
+
+    /// <summary>Embedding model for semantic search (e.g. "text-embedding-3-small" for OpenAI, "nomic-embed-text" for Ollama).</summary>
+    [JsonPropertyName("embedding_model")]
+    public string EmbeddingModel { get; set; } = "text-embedding-3-small";
 }
 
 // ── Model entry ───────────────────────────────────────────────────────────────
@@ -642,6 +646,13 @@ public static class ConfigManager
                     config.ApiKey = legacyKey.GetString() ?? "";
             }
             catch { /* ignore */ }
+
+            // Auto-migrate: re-save with encryption so plaintext is removed from disk
+            if (!string.IsNullOrEmpty(config.ApiKey))
+            {
+                try { Save(config); }
+                catch { /* best-effort migration */ }
+            }
         }
 
         return config;
@@ -689,31 +700,45 @@ public static class ConfigManager
     private static byte[] GetOrCreateKey()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(KeyFile)!);
+
+        // Fast path: key already exists
         if (File.Exists(KeyFile))
             return Convert.FromBase64String(File.ReadAllText(KeyFile).Trim());
 
         var key = new byte[32];
         System.Security.Cryptography.RandomNumberGenerator.Fill(key);
-        File.WriteAllText(KeyFile, Convert.ToBase64String(key));
+        var keyBase64 = Convert.ToBase64String(key);
 
-        // Restrict to owner-only on Unix (chmod 600)
-        if (!OperatingSystem.IsWindows())
+        try
         {
-            try
+            if (OperatingSystem.IsWindows())
             {
-                var chmod = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "chmod",
-                    Arguments = $"600 \"{KeyFile}\"",
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                });
-                chmod?.WaitForExit(2000);
+                // Windows: CreateNew is atomic enough; no chmod needed
+                using var fs = new FileStream(KeyFile, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                using var writer = new StreamWriter(fs);
+                writer.Write(keyBase64);
             }
-            catch { /* best-effort */ }
+            else
+            {
+                // Unix: create with 0600 permissions atomically
+                var options = new FileStreamOptions
+                {
+                    Mode = FileMode.CreateNew,
+                    Access = FileAccess.Write,
+                    Share = FileShare.None,
+                    UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite
+                };
+                using var fs = new FileStream(KeyFile, options);
+                using var writer = new StreamWriter(fs);
+                writer.Write(keyBase64);
+            }
+            return key;
         }
-
-        return key;
+        catch (IOException)
+        {
+            // Another process won the race — read their key
+            return Convert.FromBase64String(File.ReadAllText(KeyFile).Trim());
+        }
     }
 
     private static string EncryptAesGcm(string plaintext)

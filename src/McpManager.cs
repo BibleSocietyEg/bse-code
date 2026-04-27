@@ -63,6 +63,9 @@ internal sealed class McpSession : IAsyncDisposable
     private int _nextId = 1;
     public int NextId() => Interlocked.Increment(ref _nextId);
 
+    /// <summary>Serializes concurrent JSON-RPC requests on this session's stdio streams.</summary>
+    public readonly SemaphoreSlim RequestLock = new(1, 1);
+
     public McpSession(string serverName, Process process)
     {
         ServerName = serverName;
@@ -89,6 +92,7 @@ internal sealed class McpSession : IAsyncDisposable
         catch { /* timeout or already exited */ }
 
         Process.Dispose();
+        RequestLock.Dispose();
     }
 }
 
@@ -205,6 +209,22 @@ public static class McpManager
 
         var process = new Process { StartInfo = startInfo };
         process.Start();
+
+        // Drain stderr in background to prevent pipe buffer deadlock
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                string? line;
+                while ((line = await process.StandardError.ReadLineAsync()) is not null)
+                {
+                    // Forward MCP server stderr as debug warnings (best-effort)
+                    if (!string.IsNullOrWhiteSpace(line))
+                        UI.Warn($"🔌 MCP '{serverName}' stderr: {line}");
+                }
+            }
+            catch { /* process exited */ }
+        });
 
         // Send initialize request (id=1)
         var initRequest = new
@@ -381,20 +401,28 @@ public static class McpManager
             @params
         };
 
-        await session.Stdin.WriteLineAsync(JsonSerializer.Serialize(request));
-        await session.Stdin.FlushAsync();
+        await session.RequestLock.WaitAsync();
+        try
+        {
+            await session.Stdin.WriteLineAsync(JsonSerializer.Serialize(request));
+            await session.Stdin.FlushAsync();
 
-        var responseLine = await ReadLineWithTimeoutAsync(session.Stdout, 10000);
-        if (responseLine is null) return null;
+            var responseLine = await ReadLineWithTimeoutAsync(session.Stdout, 10000);
+            if (responseLine is null) return null;
 
-        var doc = JsonDocument.Parse(responseLine);
-        if (doc.RootElement.TryGetProperty("result", out var result))
-            return result;
+            var doc = JsonDocument.Parse(responseLine);
+            if (doc.RootElement.TryGetProperty("result", out var result))
+                return result;
 
-        if (doc.RootElement.TryGetProperty("error", out var error))
-            throw new Exception(error.GetRawText());
+            if (doc.RootElement.TryGetProperty("error", out var error))
+                throw new Exception(error.GetRawText());
 
-        return null;
+            return null;
+        }
+        finally
+        {
+            session.RequestLock.Release();
+        }
     }
 
     private static async Task<string?> ReadLineWithTimeoutAsync(

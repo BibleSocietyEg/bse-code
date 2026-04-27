@@ -351,8 +351,10 @@ public sealed class SlashCommandHandler
     };
 
     /// <summary>
-    /// Prunes the message list to fit within the token budget.
-    /// Always preserves all SystemChatMessages and the last 8 non-system messages (4 pairs).
+    /// Prunes the message list to fit within the token budget where possible.
+    /// Always preserves all SystemChatMessages and the last 8 non-system messages (4 pairs)
+    /// regardless of their size — if system + protected messages alone exceed the budget,
+    /// the returned list will still exceed the budget (protected messages are never dropped).
     /// Returns the pruned list (does not modify the input).
     /// </summary>
     internal static List<ChatMessage> PruneToBudget(
