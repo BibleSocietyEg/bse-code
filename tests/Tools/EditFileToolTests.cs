@@ -23,10 +23,11 @@ public static class EditFileToolGenerators
             from token in printableString.Select(s => s.Get)
             from suffix in printableString.Select(s => s.Get)
             from replacement in printableString.Select(s => s.Get)
-            // Ensure token appears exactly once: not in prefix or suffix, and replacement doesn't re-introduce it
-            where !prefix.Contains(token, StringComparison.Ordinal)
-               && !suffix.Contains(token, StringComparison.Ordinal)
-               && !replacement.Contains(token, StringComparison.Ordinal)
+                // Ensure token appears exactly once: not in prefix or suffix, and replacement doesn't re-introduce it
+            where
+                !prefix.Contains(token, StringComparison.Ordinal)
+                && !suffix.Contains(token, StringComparison.Ordinal)
+                && !replacement.Contains(token, StringComparison.Ordinal)
             select (prefix, token, suffix, replacement);
 
         return gen.ToArbitrary();
