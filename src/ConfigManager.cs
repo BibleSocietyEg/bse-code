@@ -46,7 +46,7 @@ public class AppConfig
 
     /// <summary>Model identifier (e.g. "gpt-4o", "llama3", "google/gemini-2.5-pro-exp-03-25:free").</summary>
     [JsonPropertyName("model")]
-    public string Model { get; set; } = "z-ai/glm-4.5-air:free";
+    public string Model { get; set; } = "";
 
     /// <summary>OpenAI-compatible API base URL (set automatically by the setup wizard).</summary>
     [JsonPropertyName("base_url")]
@@ -248,6 +248,25 @@ public static class ConfigManager
             if (!string.IsNullOrEmpty(envModel)) saved.Model = envModel;
             if (!string.IsNullOrEmpty(envBase)) saved.BaseUrl = envBase;
             if (!string.IsNullOrEmpty(envProvider)) saved.Provider = envProvider;
+
+            // If the saved config has no model (e.g. migrated from an older version
+            // or the field was missing), fall back to the provider's default model
+            // rather than sending an empty or wrong model ID to the API.
+            if (string.IsNullOrWhiteSpace(saved.Model))
+            {
+                var provDef = Providers.FirstOrDefault(
+                    p => string.Equals(p.Provider.ToString(), saved.Provider, StringComparison.OrdinalIgnoreCase));
+                saved.Model = provDef?.DefaultModel ?? "";
+
+                // If we still have no model, force the setup wizard so the user
+                // can pick one — better than a cryptic 404 from the API.
+                if (string.IsNullOrWhiteSpace(saved.Model))
+                    return await RunSetupWizardAsync(envKey, envModel, envBase, envProvider);
+
+                // Persist the resolved model so this doesn't repeat next run.
+                try { Save(saved); } catch { /* best-effort */ }
+            }
+
             ValidateBaseUrl(saved);
             return saved;
         }
