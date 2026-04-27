@@ -97,21 +97,38 @@ public class SemanticSearchToolTests
     // **Validates: Requirements 1.2**
     // Feature: bse-code-improvements, Property 7: SemanticSearchTool path restriction
     [Property(MaxTest = 50)]
-    public bool SemanticSearch_PathRestriction_OnlyReturnsMatchingPaths(NonEmptyString pathPrefix)
+    public Property SemanticSearch_PathRestriction_OnlyReturnsMatchingPaths()
     {
-        var prefix = pathPrefix.Get.Replace("\\", "/");
-        var chunks = new List<CodeChunk>
+        // Generate path-safe strings: alphanumeric + underscore only, no special chars
+        var gen = ArbMap.Default.GeneratorFor<NonEmptyString>()
+            .Where(s => s.Get.All(c => char.IsLetterOrDigit(c) || c == '_') && s.Get.Length >= 2);
+
+        return Prop.ForAll(gen.ToArbitrary(), pathPrefix =>
         {
-            new() { FilePath = prefix + "/file1.cs", StartLine = 1, EndLine = 5, Text = "a", Embedding = [1f, 0f] },
-            new() { FilePath = prefix + "/file2.cs", StartLine = 1, EndLine = 5, Text = "b", Embedding = [0f, 1f] },
-            new() { FilePath = "/other/path/file3.cs", StartLine = 1, EndLine = 5, Text = "c", Embedding = [1f, 1f] },
-        };
+            var sep = Path.DirectorySeparatorChar;
+            var prefix = $"{sep}testroot{sep}{pathPrefix.Get}";
+            var otherPath = $"{sep}other{sep}path";
 
-        var filtered = chunks
-            .Where(c => c.FilePath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+            var chunks = new List<CodeChunk>
+            {
+                new() { FilePath = prefix + $"{sep}file1.cs", StartLine = 1, EndLine = 5, Text = "a", Embedding = [1f, 0f] },
+                new() { FilePath = prefix + $"{sep}file2.cs", StartLine = 1, EndLine = 5, Text = "b", Embedding = [0f, 1f] },
+                new() { FilePath = otherPath + $"{sep}file3.cs", StartLine = 1, EndLine = 5, Text = "c", Embedding = [1f, 1f] },
+            };
 
-        return filtered.All(c => c.FilePath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            && filtered.Count == 2;
+            // Use the same directory-boundary filter as production code
+            var filtered = chunks
+                .Where(c =>
+                {
+                    var fullPath = Path.GetFullPath(c.FilePath);
+                    var resolvedPrefix = Path.GetFullPath(prefix);
+                    return fullPath.StartsWith(resolvedPrefix + sep, StringComparison.OrdinalIgnoreCase)
+                        || fullPath.Equals(resolvedPrefix, StringComparison.OrdinalIgnoreCase);
+                })
+                .ToList();
+
+            return filtered.Count == 2
+                && filtered.All(c => c.FilePath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+        });
     }
 }
