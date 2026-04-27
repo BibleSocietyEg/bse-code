@@ -93,9 +93,22 @@ public sealed class DiagnosticTool : IToolHandler
         {
             // ESLint JSON output is an array of file results
             var trimmed = output.Trim();
-            if (!trimmed.StartsWith("[")) return results;
+            string jsonToParse = trimmed;
 
-            using var doc = JsonDocument.Parse(trimmed);
+            // If output doesn't start with '[', try to extract the JSON array from combined stdout+stderr
+            if (!trimmed.StartsWith("["))
+            {
+                int firstBracket = trimmed.IndexOf('[');
+                if (firstBracket < 0) return results;
+
+                // Find matching closing bracket
+                int lastBracket = trimmed.LastIndexOf(']');
+                if (lastBracket < firstBracket) return results;
+
+                jsonToParse = trimmed.Substring(firstBracket, lastBracket - firstBracket + 1);
+            }
+
+            using var doc = JsonDocument.Parse(jsonToParse);
             foreach (var fileResult in doc.RootElement.EnumerateArray())
             {
                 var filePath = fileResult.TryGetProperty("filePath", out var fp) ? fp.GetString() ?? "" : "";

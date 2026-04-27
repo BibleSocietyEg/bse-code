@@ -69,8 +69,15 @@ public sealed class EditFileTool : IToolHandler
         using var fs = File.OpenRead(filePath);
         var bom = new byte[4];
         int read = fs.Read(bom, 0, 4);
+        // Check UTF-32 BOMs first (4 bytes, more specific)
+        if (read >= 4 && bom[0] == 0xFF && bom[1] == 0xFE && bom[2] == 0x00 && bom[3] == 0x00)
+            return new System.Text.UTF32Encoding(bigEndian: false, byteOrderMark: true); // UTF-32 LE
+        if (read >= 4 && bom[0] == 0x00 && bom[1] == 0x00 && bom[2] == 0xFE && bom[3] == 0xFF)
+            return new System.Text.UTF32Encoding(bigEndian: true, byteOrderMark: true); // UTF-32 BE
+        // Then check UTF-8 (3 bytes)
         if (read >= 3 && bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF)
             return new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
+        // Then check UTF-16 (2 bytes)
         if (read >= 2 && bom[0] == 0xFF && bom[1] == 0xFE)
             return System.Text.Encoding.Unicode; // UTF-16 LE
         if (read >= 2 && bom[0] == 0xFE && bom[1] == 0xFF)
