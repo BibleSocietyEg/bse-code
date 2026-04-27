@@ -257,13 +257,10 @@ public sealed class ReplEngine
             var orderedAccs = accumulators.Values.OrderBy(a => a.Index).ToList();
             var fileLocks = new System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim>();
 
-            // Print all tool call headers before dispatching
-            foreach (var acc in orderedAccs)
-                PrintToolCall(acc.Name, acc.Arguments);
-
             _sessionToolCalls += orderedAccs.Count;
 
-            // Execute all tool calls concurrently, serializing same-file-path calls
+            // Execute all tool calls concurrently, serializing same-file-path calls.
+            // Each tool gets its own inline spinner that resolves to ✓ or ✗.
             var tasks = orderedAccs.Select(async acc =>
             {
                 var filePath = ExtractFilePath(acc.Name, acc.Arguments) ?? "__no_file__";
@@ -271,6 +268,11 @@ public sealed class ReplEngine
                 await sem.WaitAsync();
                 try
                 {
+                    // Print the tool header (ends without newline, leaves cursor inline)
+                    PrintToolCall(acc.Name, acc.Arguments);
+
+                    // Start an inline spinner on the same line while the tool runs
+                    using var toolSpinner = new ToolSpinner();
                     string result;
                     bool success = true;
                     try
@@ -284,6 +286,7 @@ public sealed class ReplEngine
                         result = $"ERROR: {ex.Message}";
                         success = false;
                     }
+                    toolSpinner.Stop();
                     PrintToolResult(acc.Name, result, success);
                     return result;
                 }
