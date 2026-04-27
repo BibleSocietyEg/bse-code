@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.Json;
 using OpenAI.Embeddings;
 
 /// <summary>
@@ -166,7 +165,7 @@ public sealed class SemanticSearchTool : IToolHandler
                 var texts = chunks.Select(c => c.Text).ToList();
                 bool anyBatchFailed = false;
 
-                for (int batchStart = 0; batchStart < texts.Count; )
+                for (int batchStart = 0; batchStart < texts.Count;)
                 {
                     var batchSize = Math.Min(maxInputsPerRequest, texts.Count - batchStart);
                     var batch = texts.Skip(batchStart).Take(batchSize).ToList();
