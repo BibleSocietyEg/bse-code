@@ -683,16 +683,40 @@ public static class ConfigManager
     }
 
     // macOS/Linux: AES-256-GCM
-    private static byte[] DeriveKey()
+    private static readonly string KeyFile = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".bse-code", ".key");
+
+    private static byte[] GetOrCreateKey()
     {
-        var machineSecret = System.Text.Encoding.UTF8.GetBytes(
-            Environment.MachineName + Environment.UserName);
-        return System.Security.Cryptography.SHA256.HashData(machineSecret);
+        Directory.CreateDirectory(Path.GetDirectoryName(KeyFile)!);
+        if (File.Exists(KeyFile))
+            return Convert.FromBase64String(File.ReadAllText(KeyFile).Trim());
+
+        var key = new byte[32];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(key);
+        File.WriteAllText(KeyFile, Convert.ToBase64String(key));
+
+        // Restrict to owner-only on Unix (chmod 600)
+        if (!OperatingSystem.IsWindows())
+        {
+            try
+            {
+                var chmod = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "chmod", Arguments = $"600 \"{KeyFile}\"",
+                    UseShellExecute = false, CreateNoWindow = true
+                });
+                chmod?.WaitForExit(2000);
+            }
+            catch { /* best-effort */ }
+        }
+
+        return key;
     }
 
     private static string EncryptAesGcm(string plaintext)
     {
-        var key = DeriveKey();
+        var key = GetOrCreateKey();
         var nonce = new byte[System.Security.Cryptography.AesGcm.NonceByteSizes.MaxSize];
         System.Security.Cryptography.RandomNumberGenerator.Fill(nonce);
         var plaintextBytes = System.Text.Encoding.UTF8.GetBytes(plaintext);
@@ -710,7 +734,7 @@ public static class ConfigManager
 
     private static string DecryptAesGcm(string ciphertextBase64)
     {
-        var key = DeriveKey();
+        var key = GetOrCreateKey();
         var data = Convert.FromBase64String(ciphertextBase64);
         int nonceSize = System.Security.Cryptography.AesGcm.NonceByteSizes.MaxSize;
         int tagSize = System.Security.Cryptography.AesGcm.TagByteSizes.MaxSize;

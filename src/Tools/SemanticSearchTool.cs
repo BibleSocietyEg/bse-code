@@ -67,9 +67,17 @@ public sealed class SemanticSearchTool : IToolHandler
         }
 
         // Filter by path
-        var candidates = string.IsNullOrEmpty(searchPath) || searchPath == Directory.GetCurrentDirectory()
-            ? _index
-            : _index.Where(c => c.FilePath.StartsWith(searchPath, StringComparison.OrdinalIgnoreCase)).ToList();
+        // Always filter by searchPath with directory-boundary check
+        var resolvedSearch = Path.GetFullPath(searchPath);
+        var sep = Path.DirectorySeparatorChar.ToString();
+        var candidates = _index
+            .Where(c =>
+            {
+                var fullPath = Path.GetFullPath(c.FilePath);
+                return fullPath.StartsWith(resolvedSearch + sep, StringComparison.OrdinalIgnoreCase)
+                    || fullPath.Equals(resolvedSearch, StringComparison.OrdinalIgnoreCase);
+            })
+            .ToList();
 
         if (candidates.Count == 0)
             return "No indexed files found in the specified path.";
@@ -119,6 +127,15 @@ public sealed class SemanticSearchTool : IToolHandler
                 .Where(f => !f.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar))
                 .Where(f => !f.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar))
                 .ToList();
+
+            // Evict chunks for files that no longer exist
+            var existingFiles = new HashSet<string>(files, StringComparer.OrdinalIgnoreCase);
+            var deletedFiles = _fileTimestamps.Keys.Where(f => !existingFiles.Contains(f)).ToList();
+            foreach (var deleted in deletedFiles)
+            {
+                _index.RemoveAll(c => c.FilePath == deleted);
+                _fileTimestamps.Remove(deleted);
+            }
 
             foreach (var file in files)
             {

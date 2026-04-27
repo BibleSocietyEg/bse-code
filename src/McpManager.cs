@@ -119,13 +119,24 @@ public static class McpManager
     private static readonly Dictionary<string, McpSession> _sessions = [];
     private static readonly Dictionary<string, int> _restartCounts = [];
     private static readonly HashSet<string> _unavailable = [];
+    private static readonly SemaphoreSlim _sessionLock = new(1, 1);
 
     public static IReadOnlyList<McpTool> Tools => _tools;
 
-    public static IReadOnlyDictionary<string, McpServerConfig> Servers =>
-        _sessions.Keys
-            .Where(k => _config.McpServers.ContainsKey(k))
-            .ToDictionary(k => k, k => _config.McpServers[k]);
+    public static IReadOnlyDictionary<string, McpServerConfig> Servers
+    {
+        get
+        {
+            _sessionLock.Wait();
+            try
+            {
+                return _sessions.Keys
+                    .Where(k => _config.McpServers.ContainsKey(k))
+                    .ToDictionary(k => k, k => _config.McpServers[k]);
+            }
+            finally { _sessionLock.Release(); }
+        }
+    }
 
     /// <summary>Loads MCP config and discovers tools from all enabled servers.</summary>
     public static Task LoadAsync() => LoadAsync(McpFile);
@@ -235,38 +246,45 @@ public static class McpManager
     /// </summary>
     private static async Task<McpSession?> EnsureSessionAliveAsync(string serverName)
     {
-        if (_unavailable.Contains(serverName)) return null;
-
-        if (_sessions.TryGetValue(serverName, out var session) && session.IsAlive)
-            return session;
-
-        _restartCounts.TryGetValue(serverName, out int count);
-        if (count >= 3)
-        {
-            _unavailable.Add(serverName);
-            return null;
-        }
-
-        UI.Warn($"🔌 MCP '{serverName}' exited unexpectedly. Restarting (attempt {count + 1}/3)...");
-        _restartCounts[serverName] = count + 1;
-
+        await _sessionLock.WaitAsync();
         try
         {
-            // Dispose old session if it exists
-            if (_sessions.TryGetValue(serverName, out var oldSession))
+            if (_unavailable.Contains(serverName)) return null;
+
+            if (_sessions.TryGetValue(serverName, out var session) && session.IsAlive)
+                return session;
+
+            _restartCounts.TryGetValue(serverName, out int count);
+            if (count >= 3)
             {
-                await oldSession.DisposeAsync();
-                _sessions.Remove(serverName);
+                _unavailable.Add(serverName);
+                return null;
             }
 
-            var newSession = await SpawnSessionAsync(serverName, _config.McpServers[serverName]);
-            _sessions[serverName] = newSession;
-            return newSession;
+            UI.Warn($"🔌 MCP '{serverName}' exited unexpectedly. Restarting (attempt {count + 1}/3)...");
+            _restartCounts[serverName] = count + 1;
+
+            try
+            {
+                if (_sessions.TryGetValue(serverName, out var oldSession))
+                {
+                    await oldSession.DisposeAsync();
+                    _sessions.Remove(serverName);
+                }
+
+                var newSession = await SpawnSessionAsync(serverName, _config.McpServers[serverName]);
+                _sessions[serverName] = newSession;
+                return newSession;
+            }
+            catch (Exception ex)
+            {
+                UI.Warn($"🔌 MCP '{serverName}': restart failed — {ex.Message}");
+                return null;
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            UI.Warn($"🔌 MCP '{serverName}': restart failed — {ex.Message}");
-            return null;
+            _sessionLock.Release();
         }
     }
 

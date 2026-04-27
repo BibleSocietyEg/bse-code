@@ -6,6 +6,8 @@ public sealed class BashTool : IToolHandler
     /// <summary>Default timeout for shell commands (30 seconds).</summary>
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 
+    private static readonly SemaphoreSlim _confirmLock = new(1, 1);
+
     // ── Security: blocklist / allowlist ──────────────────────────────────────
 
     internal static readonly string[] Blocklist =
@@ -60,7 +62,7 @@ public sealed class BashTool : IToolHandler
         }
     };
 
-    public Task<string> ExecuteAsync(string argsJson)
+    public async Task<string> ExecuteAsync(string argsJson)
     {
         var args = ArgumentParser.ParseStringMap(argsJson);
         // WARNING: 'command' is passed directly to the platform shell without sanitization.
@@ -75,19 +77,27 @@ public sealed class BashTool : IToolHandler
 
         // ── Security checks ───────────────────────────────────────────────────
         if (IsBlocked(command))
-            return Task.FromResult($"ERROR: Command blocked for safety: '{command}'");
+            return $"ERROR: Command blocked for safety: '{command}'";
 
         var skipConfirm = Environment.GetEnvironmentVariable("BSE_BASH_CONFIRM")
                               ?.Equals("off", StringComparison.OrdinalIgnoreCase) == true;
 
         if (!IsAllowed(command) && !skipConfirm)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.Write($"  ⚠️  Allow command? [y/N]: {command}\n  > ");
-            Console.ResetColor();
-            var answer = Console.ReadLine()?.Trim();
-            if (!string.Equals(answer, "y", StringComparison.OrdinalIgnoreCase))
-                return Task.FromResult("ERROR: Command denied by user.");
+            await _confirmLock.WaitAsync();
+            try
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.Write($"  ⚠️  Allow command? [y/N]: {command}\n  > ");
+                Console.ResetColor();
+                var answer = Console.ReadLine()?.Trim();
+                if (!string.Equals(answer, "y", StringComparison.OrdinalIgnoreCase))
+                    return "ERROR: Command denied by user.";
+            }
+            finally
+            {
+                _confirmLock.Release();
+            }
         }
 
         var result = RunShell(command, timeout, stdinInput);
@@ -96,7 +106,7 @@ public sealed class BashTool : IToolHandler
         var exitCode = result.StartsWith("ERROR:") ? -1 : 0;
         AppendAuditLog(command, exitCode);
 
-        return Task.FromResult(result);
+        return result;
     }
 
     /// <summary>
@@ -160,5 +170,60 @@ public sealed class BashTool : IToolHandler
         if (string.IsNullOrEmpty(stderr)) return stdout;
         if (string.IsNullOrEmpty(stdout)) return $"STDERR:\n{stderr}";
         return $"STDOUT:\n{stdout}\nSTDERR:\n{stderr}";
+    }
+
+    /// <summary>Runs a shell command and returns both the output string and the actual process exit code.</summary>
+    internal static (string output, int exitCode) RunShellWithExitCode(
+        string command, TimeSpan? timeout = null, string? stdin = null)
+    {
+        var effectiveTimeout = timeout ?? DefaultTimeout;
+
+        var startInfo = new ProcessStartInfo
+        {
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        if (OperatingSystem.IsWindows())
+        {
+            startInfo.FileName = "cmd.exe";
+            startInfo.Arguments = "/c " + command;
+        }
+        else
+        {
+            startInfo.FileName = "/bin/bash";
+            startInfo.ArgumentList.Add("-c");
+            startInfo.ArgumentList.Add(command);
+        }
+
+        using var process = new Process { StartInfo = startInfo };
+        process.Start();
+
+        if (stdin is not null) process.StandardInput.Write(stdin);
+        process.StandardInput.Close();
+
+        var stdoutTask2 = process.StandardOutput.ReadToEndAsync();
+        var stderrTask2 = process.StandardError.ReadToEndAsync();
+
+        bool finished = process.WaitForExit((int)effectiveTimeout.TotalMilliseconds);
+        if (!finished)
+        {
+            try { process.Kill(entireProcessTree: true); } catch { }
+            return ($"ERROR: Command timed out after {effectiveTimeout.TotalSeconds:0}s: {command}", -1);
+        }
+
+        var stdoutResult = stdoutTask2.GetAwaiter().GetResult();
+        var stderrResult = stderrTask2.GetAwaiter().GetResult();
+        int exitCode = process.ExitCode;
+
+        string output;
+        if (string.IsNullOrEmpty(stderrResult)) output = stdoutResult;
+        else if (string.IsNullOrEmpty(stdoutResult)) output = $"STDERR:\n{stderrResult}";
+        else output = $"STDOUT:\n{stdoutResult}\nSTDERR:\n{stderrResult}";
+
+        return (output, exitCode);
     }
 }

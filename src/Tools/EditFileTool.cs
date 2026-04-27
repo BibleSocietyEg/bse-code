@@ -23,6 +23,8 @@ public sealed class EditFileTool : IToolHandler
             throw new ArgumentException("'file_path' is required.");
         if (!args.TryGetValue("old_str", out var oldStr) || oldStr is null)
             throw new ArgumentException("'old_str' is required.");
+        if (oldStr.Length == 0)
+            return "ERROR: 'old_str' must not be empty.";
         if (!args.TryGetValue("new_str", out var newStr) || newStr is null)
             throw new ArgumentException("'new_str' is required.");
 

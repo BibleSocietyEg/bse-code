@@ -350,6 +350,28 @@ public sealed class SlashCommandHandler
         _ => ""
     };
 
+    /// <summary>
+    /// Prunes the message list to fit within the token budget.
+    /// Always preserves all SystemChatMessages and the last 8 non-system messages (4 pairs).
+    /// Returns the pruned list (does not modify the input).
+    /// </summary>
+    internal static List<ChatMessage> PruneToBudget(
+        IReadOnlyList<ChatMessage> messages, int budget = DefaultTokenBudget)
+    {
+        var systemMessages = messages.Where(m => m is SystemChatMessage).ToList();
+        var nonSystem = messages.Where(m => m is not SystemChatMessage).ToList();
+        var protectedMessages = nonSystem.TakeLast(8).ToList();
+        var prunable = nonSystem.SkipLast(8).ToList();
+
+        while (prunable.Count > 0 &&
+               EstimateTokens(systemMessages.Concat(prunable).Concat(protectedMessages)) > budget)
+        {
+            prunable.RemoveAt(0);
+        }
+
+        return [.. systemMessages, .. prunable, .. protectedMessages];
+    }
+
     private async Task HandleCompactAsync(
         string arg, List<ChatMessage> messages, ChatCompletionOptions opts)
     {
@@ -362,25 +384,9 @@ public sealed class SlashCommandHandler
             return;
         }
 
-        // Separate system messages from non-system messages
-        var systemMessages = messages.Where(m => m is SystemChatMessage).ToList();
-        var nonSystem = messages.Where(m => m is not SystemChatMessage).ToList();
-
-        // Always keep the last 8 non-system messages (4 user/assistant pairs)
-        var protectedMessages = nonSystem.TakeLast(8).ToList();
-        var prunable = nonSystem.SkipLast(8).ToList();
-
-        // Prune oldest non-system messages until below budget
-        while (prunable.Count > 0 &&
-               EstimateTokens(systemMessages.Concat(prunable).Concat(protectedMessages)) > DefaultTokenBudget)
-        {
-            prunable.RemoveAt(0);
-        }
-
+        var pruned = PruneToBudget(messages);
         messages.Clear();
-        messages.AddRange(systemMessages);
-        messages.AddRange(prunable);
-        messages.AddRange(protectedMessages);
+        messages.AddRange(pruned);
 
         // Run LLM summarization
         var prompt = string.IsNullOrEmpty(arg)

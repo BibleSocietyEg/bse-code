@@ -104,23 +104,28 @@ public static class MarkdownRenderer
     /// <summary>Processes inline bold (**text**), italic (*text*), and code (`text`) markdown.</summary>
     internal static string ProcessInlineMarkdown(string line)
     {
+        // Escape the whole line first so literal [ ] don't break Spectre markup
+        var escaped = EscapeMarkup(line);
+
         // Bold: **text** → [bold]text[/]
+        // Note: after EscapeMarkup, ** is still **, but [ ] are [[ ]]
+        // We need to match ** in the escaped string and wrap with real Spectre tags
         var result = System.Text.RegularExpressions.Regex.Replace(
-            line,
+            escaped,
             @"\*\*(.+?)\*\*",
-            m => $"[bold]{EscapeMarkup(m.Groups[1].Value)}[/]");
+            m => $"[bold]{m.Groups[1].Value}[/]");
 
         // Italic: *text* → [italic]text[/]
         result = System.Text.RegularExpressions.Regex.Replace(
             result,
             @"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)",
-            m => $"[italic]{EscapeMarkup(m.Groups[1].Value)}[/]");
+            m => $"[italic]{m.Groups[1].Value}[/]");
 
         // Inline code: `text` → [cyan]text[/]
         result = System.Text.RegularExpressions.Regex.Replace(
             result,
             @"`([^`]+)`",
-            m => $"[cyan]{EscapeMarkup(m.Groups[1].Value)}[/]");
+            m => $"[cyan]{m.Groups[1].Value}[/]");
 
         return result;
     }

@@ -77,20 +77,7 @@ public class SlashCommandHandlerCompactTests
         var tokensBefore = SlashCommandHandler.EstimateTokens(msgs);
         tokensBefore.Should().BeGreaterThan(budget);
 
-        // Simulate the pruning logic
-        var systemMessages = msgs.Where(m => m is SystemChatMessage).ToList();
-        var nonSystem = msgs.Where(m => m is not SystemChatMessage).ToList();
-        var protectedMessages = nonSystem.TakeLast(8).ToList();
-        var prunable = nonSystem.SkipLast(8).ToList();
-
-        while (prunable.Count > 0 &&
-               SlashCommandHandler.EstimateTokens(
-                   systemMessages.Concat(prunable).Concat(protectedMessages)) > budget)
-        {
-            prunable.RemoveAt(0);
-        }
-
-        var pruned = systemMessages.Concat(prunable).Concat(protectedMessages).ToList();
+        var pruned = SlashCommandHandler.PruneToBudget(msgs, budget);
         SlashCommandHandler.EstimateTokens(pruned).Should().BeLessThanOrEqualTo(budget);
     }
 
@@ -109,19 +96,10 @@ public class SlashCommandHandlerCompactTests
             msgs.Add(new AssistantChatMessage(new string('a', 8000)));
         }
 
-        var systemMessages = msgs.Where(m => m is SystemChatMessage).ToList();
         var nonSystem = msgs.Where(m => m is not SystemChatMessage).ToList();
         var protectedMessages = nonSystem.TakeLast(8).ToList();
-        var prunable = nonSystem.SkipLast(8).ToList();
 
-        while (prunable.Count > 0 &&
-               SlashCommandHandler.EstimateTokens(
-                   systemMessages.Concat(prunable).Concat(protectedMessages)) > budget)
-        {
-            prunable.RemoveAt(0);
-        }
-
-        var result = systemMessages.Concat(prunable).Concat(protectedMessages).ToList();
+        var result = SlashCommandHandler.PruneToBudget(msgs, budget);
 
         // System messages preserved
         result.OfType<SystemChatMessage>().Should().HaveCount(1);

@@ -33,27 +33,27 @@ public sealed class DiagnosticTool : IToolHandler
         if (args.TryGetValue("timeout_seconds", out var ts) && int.TryParse(ts, out var secs) && secs > 0)
             timeout = TimeSpan.FromSeconds(secs);
 
-        var rawOutput = BashTool.RunShell(command, timeout);
+        // Apply blocklist check before executing
+        if (BashTool.IsBlocked(command))
+            return Task.FromResult(System.Text.Json.JsonSerializer.Serialize(
+                new DiagnosticResult
+                {
+                    ExitCode = -1,
+                    Diagnostics = [new DiagnosticMessage { Severity = "error", Message = $"Command blocked for safety: '{command}'" }]
+                }));
 
-        // Try to extract exit code from timeout error
-        int exitCode = 0;
-        if (rawOutput.StartsWith("ERROR: Command timed out"))
-            exitCode = -1;
+        var (rawOutput, exitCode) = BashTool.RunShellWithExitCode(command, timeout);
 
         var diagnostics = ParseMsBuild(rawOutput);
         if (diagnostics.Count == 0)
             diagnostics = TryParseEslintJson(rawOutput);
 
-        // Fallback: if no parseable diagnostics and output looks like an error
-        if (diagnostics.Count == 0 && (exitCode != 0 || rawOutput.Contains("error", StringComparison.OrdinalIgnoreCase)))
+        // Fallback: if no parseable diagnostics and command actually failed
+        if (diagnostics.Count == 0 && exitCode != 0)
         {
             diagnostics.Add(new DiagnosticMessage
             {
-                File = "",
-                Line = 0,
-                Column = 0,
-                Severity = "error",
-                Code = "",
+                File = "", Line = 0, Column = 0, Severity = "error", Code = "",
                 Message = rawOutput.Length > 2000 ? rawOutput[..2000] + "..." : rawOutput
             });
         }
