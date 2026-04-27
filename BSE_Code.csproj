@@ -10,7 +10,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>bse-code</ToolCommandName>
     <PackageId>bse-code</PackageId>
-    <Version>2.1.0</Version>
+    <Version>2.1.1</Version>
     <Description>AI coding assistant CLI — supports OpenRouter, OpenAI, Anthropic, Google AI, Ollama, LM Studio, Local AI Foundry, and any OpenAI-compatible endpoint</Description>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
