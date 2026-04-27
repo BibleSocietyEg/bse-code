@@ -427,9 +427,33 @@ public static class McpManager
             await session.Stdin.FlushAsync();
 
             var responseLine = await ReadLineWithTimeoutAsync(session.Stdout, 10000);
-            if (responseLine is null) return null;
+            if (responseLine is null)
+            {
+                // Timeout occurred - tear down session to prevent late response from leaking
+                session.RequestLock.Release();
+                await session.DisposeAsync();
+                throw new Exception($"MCP server '{session.ServerName}' timed out, session terminated.");
+            }
 
             var doc = JsonDocument.Parse(responseLine);
+
+            // Validate response ID matches request ID
+            if (doc.RootElement.TryGetProperty("id", out var responseId))
+            {
+                int expectedId = request.id;
+                int actualId = responseId.ValueKind == System.Text.Json.JsonValueKind.Number
+                    ? responseId.GetInt32()
+                    : -1;
+
+                if (actualId != expectedId)
+                {
+                    // ID mismatch - tear down session to prevent protocol corruption
+                    session.RequestLock.Release();
+                    await session.DisposeAsync();
+                    throw new Exception($"MCP protocol error: response ID {actualId} does not match request ID {expectedId}, session terminated.");
+                }
+            }
+
             if (doc.RootElement.TryGetProperty("result", out var result))
                 return result;
 
@@ -463,11 +487,27 @@ public static class McpManager
     /// </summary>
     public static async ValueTask DisposeAsync()
     {
-        foreach (var session in _sessions.Values)
+        await _sessionLock.WaitAsync();
+        try
         {
-            await session.DisposeAsync();
+            // Copy sessions to dispose while holding lock
+            var sessionsToDispose = _sessions.Values.ToList();
+
+            // Dispose each session
+            foreach (var session in sessionsToDispose)
+            {
+                await session.DisposeAsync();
+            }
+
+            // Clear all shared collections under lock
+            _sessions.Clear();
+            _restartCounts.Clear();
+            _unavailable.Clear();
         }
-        _sessions.Clear();
+        finally
+        {
+            _sessionLock.Release();
+        }
     }
 
     /// <summary>

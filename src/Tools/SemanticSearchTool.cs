@@ -164,8 +164,9 @@ public sealed class SemanticSearchTool : IToolHandler
                 const int maxInputsPerRequest = 100;
                 const int maxTokensPerRequest = 8000;
                 var texts = chunks.Select(c => c.Text).ToList();
+                bool anyBatchFailed = false;
 
-                for (int batchStart = 0; batchStart < texts.Count; batchStart += maxInputsPerRequest)
+                for (int batchStart = 0; batchStart < texts.Count; )
                 {
                     var batchSize = Math.Min(maxInputsPerRequest, texts.Count - batchStart);
                     var batch = texts.Skip(batchStart).Take(batchSize).ToList();
@@ -192,11 +193,19 @@ public sealed class SemanticSearchTool : IToolHandler
                     catch (Exception ex)
                     {
                         UI.Warn($"⚠️  Failed to embed batch in '{file}': {ex.Message}");
+                        anyBatchFailed = true;
                         // Continue with next batch instead of aborting
                     }
+
+                    // Advance by the actual number of items processed
+                    batchStart += batchSize;
                 }
 
-                _fileTimestamps[file] = lastWrite;
+                // Only mark the file as fully indexed if all batches succeeded
+                if (!anyBatchFailed)
+                {
+                    _fileTimestamps[file] = lastWrite;
+                }
             }
         }
         finally

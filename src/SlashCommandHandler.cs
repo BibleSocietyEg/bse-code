@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.Json;
 using OpenAI.Chat;
 
 /// <summary>
@@ -347,7 +346,7 @@ public sealed class SlashCommandHandler
     {
         UserChatMessage u => string.Concat(u.Content.Select(p => p.Text)),
         AssistantChatMessage a => string.Concat(a.Content.Select(p => p.Text)) +
-            (a.ToolCalls.Count > 0 ? string.Concat(a.ToolCalls.Select(tc => tc.FunctionName + JsonSerializer.Serialize(tc.FunctionArguments))) : ""),
+            (a.ToolCalls.Count > 0 ? string.Concat(a.ToolCalls.Select(tc => tc.FunctionName + tc.FunctionArguments.ToString())) : ""),
         SystemChatMessage s => string.Concat(s.Content.Select(p => p.Text)),
         ToolChatMessage t => string.Concat(t.Content.Select(p => p.Text)),
         _ => ""
