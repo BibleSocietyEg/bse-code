@@ -1,8 +1,9 @@
 using System.Text;
+using System.Text.Json;
 using OpenAI.Chat;
 
 /// <summary>
-/// Handles all <c>/command</c> inputs entered in the REPL.
+
 /// Extracted from Program.cs to satisfy the Single Responsibility Principle —
 /// the REPL loop should not also own command dispatch logic.
 /// </summary>
